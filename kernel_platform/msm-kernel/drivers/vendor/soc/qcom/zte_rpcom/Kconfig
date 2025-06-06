@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Misc strange devices
+#
+
+
+config ZTE_RPCOM
+	tristate "zte poweron driver for rpcom control"
+	help
+		zte poweron driver for rpcom control
