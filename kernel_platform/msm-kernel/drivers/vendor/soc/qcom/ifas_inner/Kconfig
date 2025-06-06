@@ -1,0 +1,6 @@
+
+config VENDOR_ZTE_IFAS_INNER
+	tristate "ZTE IFAS POLICY"
+	default n
+	help
+	  Say 'y' here to include support for zte ifas.

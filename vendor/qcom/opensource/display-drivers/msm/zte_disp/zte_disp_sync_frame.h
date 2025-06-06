@@ -1,0 +1,1 @@
+int sde_connector_feed_cmds_sync_frame(void *sde_encoder_virt);
