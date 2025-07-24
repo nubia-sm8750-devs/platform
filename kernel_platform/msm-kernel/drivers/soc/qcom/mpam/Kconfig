@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# QCOM MPAM drivers
+#
+
+config QTI_MPAM
+	tristate "Qualcomm Technologies Inc. MPAM Interface Driver"
+	depends on QTI_SCMI_VENDOR_PROTOCOL
+	default n
+	help
+	  This driver exports all the available APIs to config MPAM
+	  parameters. These APIs will relay the configurations to
+	  CPUCP via SCMI communication. It is intended to be used by
+	  clients familiar with modifying the MPAM configuration
+	  settings.
+
+config QTI_CPU_MPAM_INTERFACE
+	tristate "Enable QCOM CPU MPAM configfs support"
+	depends on QTI_MPAM && CONFIGFS_FS
+	default n
+	help
+	  This enables QCOM CPU MPAM configfs interface support. User
+	  can config CPU MPAM feature inlcuding CMAX, CPBM, PRIO and
+	  tasks in a partition. Monitors inlcuding CSU and MBWU are
+	  also available. Configfs interface allows user to create and
+	  remove MPAM partition according to use cases.
+
+config QTI_PLATFORM_MPAM_INTERFACE
+	tristate "Enable QCOM Platform MPAM configfs support"
+	depends on QTI_MPAM && CONFIGFS_FS
+	default n
+	help
+	  This enables QCOM Platform MPAM configfs interface support.
+	  User can config Platform MPAM gear for NOC bandwidth control
+	  or SLC size control. Byte count monitors are also available to
+	  help to the setting.
+
+config QTI_MPAM_MSC
+	tristate "Enable QCOM MSC parent driver"
+	depends on QTI_MPAM && CONFIGFS_FS
+	default n
+	help
+	Generic MSC driver to support child MSC node abstration and generic API
+
+config QTI_MPAM_MSC_SLC
+	tristate "Enable QCOM MSC SLC driver"
+	depends on QTI_MPAM && CONFIGFS_FS && QTI_MPAM_MSC
+	default n
+	help
+	MSC driver to support MSC SLC functionality
