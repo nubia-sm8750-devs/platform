@@ -1,0 +1,33 @@
+#include "dsi-panel-zte-himax-hx8874-12p3-dev0-dsc-cmd.dtsi"
+#include "dsi-panel-zte-himax-hx8874-9p06-dsc-cmd.dtsi"
+
+&soc {
+	/* add by zte for lcd new panel begin*/
+	display_panel_vddios: display_panel_vddios {
+		compatible = "qti-regulator-fixed";
+		regulator-name = "display_panel_vddios";
+		gpio = <&tlmm 213 0>;
+		enable-active-high;
+		regulator-boot-on;
+	};
+	dsi_panel_pwr_supply_qvkino: dsi_panel_pwr_supply_qvkino {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		qcom,panel-supply-entry@0 {
+			reg = <0>;
+			qcom,supply-name = "vdddqvkino";
+			qcom,supply-min-voltage = <3300000>;
+			qcom,supply-max-voltage = <3300000>;
+			qcom,supply-enable-load = <200000>;
+			qcom,supply-disable-load = <0>;
+			qcom,supply-post-on-sleep = <10>;
+		};
+	};
+};
+&sde_dsi {
+	vdddqvkino-supply = <&display_panel_vddios>;
+};
+
+&battery_charger {
+	qcom,display-panels = <&dsi_himax_hx8874_9p06_dsc_cmd>;
+};

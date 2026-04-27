@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ */
+
+/dts-v1/;
+/plugin/;
+#define ZTE_DISP_QVKINO
+#include "sun-sde-display-hdk-overlay.dts"
+#include "sun-sde-display-qvkino.dtsi"
+/ {
+	model = "Qualcomm Technologies, Inc. SunP QRD HDK";
+	qcom,board-id = <0x1001f 0>;
+};

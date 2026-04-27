@@ -1,0 +1,138 @@
+qcom,mdss-dsi-panel-width = <2480>;
+qcom,mdss-dsi-panel-height = <2200>;
+qcom,mdss-dsi-h-front-porch = <50>;
+qcom,mdss-dsi-h-back-porch = <60>;
+qcom,mdss-dsi-h-pulse-width = <0>;
+qcom,mdss-dsi-v-back-porch = <44>;
+qcom,mdss-dsi-v-front-porch = <50>;
+qcom,mdss-dsi-v-pulse-width = <10>;
+qcom,mdss-dsi-h-sync-pulse = <0>;
+qcom,mdss-dsi-h-left-border = <0>;
+qcom,mdss-dsi-h-right-border = <0>;
+qcom,mdss-dsi-v-top-border = <0>;
+qcom,mdss-dsi-v-bottom-border = <0>;
+qcom,mdss-dsi-h-sync-skew = <0>;
+//qcom,panel-roi-alignment = <1240 20 1240 20 1240 20>;
+//qcom,partial-update-enabled = "single_roi";
+qcom,disable-rsc-solver;
+qcom,mdss-mdp-transfer-time-us = <7400>;
+qcom,mdss-dsi-panel-clockrate = <1555000000>;
+//qcom,mdss-dsi-panel-jitter = <0x4 0x1>;
+
+/* code */
+qcom,mdss-dsi-lp1-command = [
+	05 00 00 40 00 00 01 6E
+	39 00 00 40 00 00 06 F0 55 AA 52 08 01
+	15 00 00 40 00 00 02 6F E4
+	39 00 00 40 00 00 09 E5 00 00 00 00 00 00 00 00
+	39 00 00 40 00 00 06 F0 55 AA 52 08 00
+	15 00 00 40 00 00 02 6F 1E
+	15 00 00 40 00 00 02 BA 01
+	15 00 00 40 00 00 02 6F 22
+	15 00 00 40 00 00 02 BA 00
+	15 00 00 40 00 00 02 6F 26
+	15 00 00 40 00 00 02 BA 00
+	15 00 00 40 00 00 02 6F 2E
+	15 00 00 40 00 00 02 BA 01
+	15 00 00 40 00 00 02 6F 32
+	15 00 00 40 00 00 02 BA 0C
+	15 00 00 40 00 00 02 6F 36
+	15 00 00 40 00 00 02 BA 0C
+	15 00 00 40 00 00 02 6F 3E
+	15 00 00 40 00 00 02 BA 01
+	15 00 00 40 00 00 02 6F 42
+	15 00 00 40 00 00 02 BA 18
+	15 00 00 40 00 00 02 6F 46
+	15 00 00 40 00 00 02 BA 18
+	15 00 00 40 00 00 02 6F 4E
+	15 00 00 40 00 00 02 BA 01
+	15 00 00 40 00 00 02 6F 52
+	15 00 00 40 00 00 02 BA 3C
+	15 00 00 40 00 00 02 6F 56
+	15 00 00 40 00 00 02 BA 3C
+	15 00 00 40 00 00 02 6F 5E
+	15 00 00 40 00 00 02 BA 01
+	15 00 00 40 00 00 02 6F 6D
+	15 00 00 40 00 00 02 BA 01
+	15 00 00 40 00 00 02 6F 76
+	15 00 00 40 00 00 02 BA 5C
+	15 00 00 40 00 00 02 6F A5
+	15 00 00 40 00 00 02 BA 03
+	15 00 00 40 00 00 02 6F AA
+	15 00 00 40 00 00 02 BA 03
+	15 00 00 40 00 00 02 6F AE
+	15 00 00 40 00 00 02 BA 03
+	15 00 00 40 00 00 02 6F B2
+	15 00 00 40 00 00 02 BA 03
+	15 00 00 40 00 00 02 2F 30
+	15 00 00 40 00 00 02 6D 82
+	39 00 00 40 00 00 06 F0 55 AA 52 08 01
+	15 00 00 40 00 00 02 6F 67
+	39 00 00 40 00 00 05 B9 00 B5 BB BB
+	15 00 00 40 00 00 02 6F 6F
+	39 00 00 00 00 00 05 B9 00 C3 CC CC
+];
+qcom,mdss-dsi-lp1-command-state =
+	"dsi_lp_mode";
+qcom,mdss-dsi-off-command = [
+	05 01 00 00 10 00 01 28
+	05 01 00 00 78 00 01 10
+];
+qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
+zte,mdss-dsi-min-fps-commands = [
+    05 01 00 00 00 00 01 6E
+	39 01 00 00 00 00 06 F0 55 AA 52 08 01
+	15 01 00 00 00 00 02 6F E4
+	39 01 00 00 00 00 09 E5 7F 7F 20 20 20 20 20 20
+	39 01 00 00 00 00 06 F0 55 AA 52 08 00
+	15 01 00 00 00 00 02 6F 21
+	15 01 00 00 00 00 02 BA 00
+	15 01 00 00 00 00 02 6F 25
+	15 01 00 00 00 00 02 BA 00
+	15 01 00 00 00 00 02 6F 31
+	15 01 00 00 00 00 02 BA 09
+	15 01 00 00 00 00 02 6F 41
+	15 01 00 00 00 00 02 BA 21
+	15 01 00 00 00 00 02 6F 45
+	15 01 00 00 00 00 02 BA 21
+	15 01 00 00 00 00 02 6F 51
+	15 01 00 00 00 00 02 BA 00
+	15 01 00 00 00 00 02 6F 55
+	15 01 00 00 00 00 02 BA 00
+	15 01 00 00 00 00 02 6F 6C
+	15 01 00 00 00 00 02 BA 00 // index 20
+	15 01 00 00 00 00 02 6F 75
+	15 01 00 00 00 00 02 BA 00 // index 22
+	15 01 00 00 00 00 02 6F A5
+	15 01 00 00 00 00 02 BA 01
+	15 01 00 00 00 00 02 6F A9
+	15 01 00 00 00 00 02 BA 00
+	15 01 00 00 00 00 02 6F AD
+	15 01 00 00 00 00 02 BA 00
+	15 01 00 00 00 00 02 6F B1
+	15 01 00 00 00 00 02 BA 00
+	15 01 00 00 00 00 02 2F 30
+	15 01 00 00 00 00 02 6D 81
+	39 01 00 00 00 00 06 F0 55 AA 52 08 01
+	15 01 00 00 00 00 02 6F 67
+	39 01 00 00 00 00 05 B9 00 65 66 66
+	15 01 00 00 00 00 02 6F 6F
+	39 01 00 00 00 00 05 B9 00 43 44 44
+];
+zte,mdss-dsi-min-fps-commands-state = "dsi_lp_mode";
+
+
+qcom,compression-mode = "dsc";
+qcom,mdss-dsc-slice-height = <20>;
+qcom,mdss-dsc-slice-width = <1240>;
+qcom,mdss-dsc-slice-per-pkt = <2>;
+qcom,mdss-dsc-bit-per-component = <8>;
+qcom,mdss-dsc-bit-per-pixel = <8>;
+qcom,mdss-dsc-block-prediction-enable;
+
+/* DPHY regular margins */
+qcom,mdss-dsi-panel-phy-timings = [00 36 0d 0d 1f 1c
+	0d 0e 0c 02 04 00 2a 12];
+qcom,display-topology = <1 1 1 
+						 2 2 1>;
+qcom,default-topology-index = <1>;

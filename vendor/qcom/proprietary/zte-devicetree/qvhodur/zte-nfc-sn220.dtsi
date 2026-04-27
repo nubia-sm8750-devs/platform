@@ -1,0 +1,29 @@
+/* NXP SN220 NFC begin */
+&qupv3_se0_i2c {
+        status = "ok";
+        /delete-node/ nq@28;
+        nfc:nfc@28 {
+                compatible = "nxp,pn544";
+                reg = <0x28>;
+                interrupt-parent = <&tlmm>;
+                interrupts = <75  0>;
+                interrupt-names = "nfc_irq";
+                nxp,pn544-ven = <&tlmm 34 0x00>;
+                nxp,pn544-irq = <&tlmm 75 0x00>;
+                //nxp,pn544-fw-dwnld = <&tlmm 40 0x00>;
+                status = "ok";
+        };
+};
+
+&qupv3_se1_spi {
+        status = "ok";
+        nxp-p73@0 {
+                compatible = "nxp,p61";
+                reg = <0>;
+                spi-max-frequency = <8000000>;
+                nxp,p61-rst = <&tlmm 34 0x00>;
+                nxp,p61-irq = <&tlmm 75 0x0>;
+                status = "ok";
+        };
+};
+/* NXP SN220 NFC end */

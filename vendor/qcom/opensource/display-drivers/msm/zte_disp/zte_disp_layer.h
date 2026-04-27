@@ -1,0 +1,3 @@
+int zte_spec_layer_report(void *sde_connector, void *sde_connector_state, uint64_t flag);
+bool panel_layer_contains_exhdr(u64 flag);
+bool panel_layer_contains_hdrvideo(u64 flag);

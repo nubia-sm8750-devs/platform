@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Misc strange devices
+#
+
+
+config ZTE_HD_SATEL
+	tristate "zte drivers for hdbd Satellite control"
+	default n
+	help
+		zte poweron driver for hdbd Satellite control
+
+config ZTE_HD_SATEL_RF
+	tristate "zte rf driver for hdbd Satellite rf control"
+	default n
+	help
+		zte rf driver for hdbd Satellite rf control
+
+config ZTE_HD6180
+	tristate "zte poweron driver for hd6180 beidou message control"
+	default n
+	help
+		zte poweron driver for hd6180 beidou message control
+
+config ZTE_HD8040
+	tristate "zte poweron driver for hd8040 beidou location control"
+	default n
+	help
+		zte poweron driver for hd8040 beidou location control

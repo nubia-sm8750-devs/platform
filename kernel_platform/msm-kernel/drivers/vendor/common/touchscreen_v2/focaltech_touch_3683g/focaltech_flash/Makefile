@@ -1,0 +1,1 @@
+obj-$(CONFIG_TOUCHSCREEN_FTS_3683G) += focaltech_upgrade_ft3683g.o

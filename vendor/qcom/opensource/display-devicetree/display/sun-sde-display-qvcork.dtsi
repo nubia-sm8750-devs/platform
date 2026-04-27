@@ -1,0 +1,58 @@
+#include "dsi-panel-zte-bf288-rm692h5-6p85-dsc-cmd.dtsi"
+#include "dsi-panel-zte-bf289-rm692h5-466p-cmd.dtsi"
+#include "dsi-panel-nt35695b-truly-fhd-video.dtsi"
+
+&soc {
+    display_sec_panel_iovcc: display_sec_panel_iovcc {
+		compatible = "qti-regulator-fixed";
+		regulator-name = "display_sec_panel_iovcc";
+		gpio = <&tlmm 89 0>;
+		enable-active-high;
+		regulator-boot-on;
+	};
+
+	display_sec_panel_gpio95en: display_sec_panel_gpio95en {
+		compatible = "qti-regulator-fixed";
+		regulator-name = "display_sec_panel_gpio95en";
+		gpio = <&tlmm 95 0>;
+		enable-active-high;
+		regulator-boot-on;
+	};
+
+	dsi_panel_sec_pwr_supply_avdd: dsi_panel_sec_pwr_supply_avdd {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		qcom,panel-supply-entry@0 {
+			reg = <0>;
+			qcom,supply-name = "secvddio";
+			qcom,supply-min-voltage = <1800000>;
+			qcom,supply-max-voltage = <1800000>;
+			qcom,supply-enable-load = <220000>;
+			qcom,supply-disable-load = <8000>;
+			qcom,supply-post-on-sleep = <20>;
+		};
+
+		qcom,panel-supply-entry@1 {
+			reg = <1>;
+			qcom,supply-name = "secavdd";
+			qcom,supply-min-voltage = <4600000>;
+			qcom,supply-max-voltage = <6000000>;
+			qcom,supply-enable-load = <260000>;
+			qcom,supply-disable-load = <100>;
+		};
+	};
+};
+
+&sde_dsi {
+	secvddio-supply = <&display_sec_panel_iovcc>;
+	secavdd-supply = <&display_sec_panel_gpio95en>;
+};
+&sde_dsi1 {
+	secvddio-supply = <&display_sec_panel_iovcc>;
+	secavdd-supply = <&display_sec_panel_gpio95en>;
+};
+
+&battery_charger {
+	qcom,display-panels = <&dsi_bf288_rm692h5_6p85_dsc_cmd>;
+};

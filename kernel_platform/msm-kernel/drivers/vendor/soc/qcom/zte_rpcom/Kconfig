@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Misc strange devices
+#
+
+
+config ZTE_RPCOM
+	tristate "zte poweron driver for rpcom control"
+	help
+		zte poweron driver for rpcom control
+
+config ZTE_RPCOM_RF_LDO
+	tristate "rpcom rf ctrl, using LDO as trx power-supply, instead of pm"
+	default n
+	help
+		rpcom rf ctrl using LDO as trx power-supply
+
+config ZTE_RPCOM_2UIMPLUG
+	tristate "rpcom uim 2hotplug"
+	default n
+	help
+		rpcom uim 2hotplug, using 2 independent uim card

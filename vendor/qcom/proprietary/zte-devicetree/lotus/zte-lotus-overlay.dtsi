@@ -1,0 +1,583 @@
+/* dtsi for lotus board (PQ84A01)*/
+#include <dt-bindings/clock/qcom,rpmh.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/regulator/qcom,rpmh-regulator-levels.h>
+#include "../zte-fingerprint-sun-goodix.dtsi"
+
+&reserved_memory {
+};
+
+&fm_i2s1_gpios {
+        status = "disabled";
+};
+
+&spf_core_platform  {
+        cdc_sec_mi2s_gpios: sec_mi2s_pinctrl {
+		status = "ok";
+		compatible = "qcom,msm-cdc-pinctrl";
+		pinctrl-names = "aud_active", "aud_sleep";
+		pinctrl-0 = <&i2s1_sck_active &i2s1_ws_active
+        	&i2s1_sd0_active &i2s1_sd1_active>;
+		pinctrl-1 = <&i2s1_sck_sleep &i2s1_ws_sleep
+        	&i2s1_sd0_sleep &i2s1_sd1_sleep>;
+	};
+
+	sun_snd: sound {
+        qcom,audio-routing =
+			"AMIC1", "Analog Mic1",
+			"AMIC1", "MIC BIAS1",
+			"AMIC2", "Analog Mic2",
+			"AMIC2", "MIC BIAS2",
+			"AMIC3", "Analog Mic3",
+			"AMIC3", "MIC BIAS3",
+			"AMIC4", "Analog Mic4",
+			"AMIC4", "MIC BIAS3",
+			"AMIC5", "Analog Mic5",
+			"AMIC5", "MIC BIAS4",
+			"VA AMIC1", "Analog Mic1",
+			"VA AMIC1", "VA MIC BIAS1",
+			"VA AMIC2", "Analog Mic2",
+			"VA AMIC2", "VA MIC BIAS2",
+			"VA AMIC3", "Analog Mic3",
+			"VA AMIC3", "VA MIC BIAS3",
+			"VA AMIC4", "Analog Mic4",
+			"VA AMIC4", "VA MIC BIAS3",
+			"VA AMIC5", "Analog Mic5",
+			"VA AMIC5", "VA MIC BIAS4",
+			"TX DMIC0", "Digital Mic0",
+			"TX DMIC0", "MIC BIAS1",
+			"TX DMIC1", "Digital Mic1",
+			"TX DMIC1", "MIC BIAS3",
+			"TX DMIC2", "Digital Mic2",
+			"TX DMIC2", "MIC BIAS3",
+			"TX DMIC3", "Digital Mic3",
+			"TX DMIC3", "MIC BIAS1",
+			"IN1_HPHL", "HPHL_OUT",
+			"IN2_HPHR", "HPHR_OUT",
+			"IN3_EAR", "AUX_OUT",
+			"RX_TX DEC0_INP", "TX DEC0 MUX",
+			"RX_TX DEC1_INP", "TX DEC1 MUX",
+			"RX_TX DEC2_INP", "TX DEC2 MUX",
+			"RX_TX DEC3_INP", "TX DEC3 MUX",
+			"TX SWR_INPUT", "WCD_TX_OUTPUT",
+			"VA SWR_INPUT", "VA_SWR_CLK",
+			"VA SWR_INPUT", "WCD_TX_OUTPUT",
+			"VA_AIF1 CAP", "VA_SWR_CLK",
+			"VA_AIF2 CAP", "VA_SWR_CLK",
+			"VA_AIF3 CAP", "VA_SWR_CLK",
+			"VA DMIC0", "Digital Mic0",
+			"VA DMIC1", "Digital Mic1",
+			"VA DMIC2", "Digital Mic2",
+			"VA DMIC3", "Digital Mic3",
+			"VA DMIC0", "VA MIC BIAS1",
+			"VA DMIC1", "VA MIC BIAS3",
+			"VA DMIC2", "VA MIC BIAS3",
+			"VA DMIC3", "VA MIC BIAS1";
+		qcom,msm-mbhc-usbc-audio-supported = <1>;
+		qcom,msm-mbhc-hphl-swh = <0>;
+		qcom,msm-mbhc-gnd-swh = <0>;
+
+		qcom,mi2s-audio-intf = <1>;
+                qcom,sec-mi2s-gpios = <&cdc_sec_mi2s_gpios>;
+                /* Fix MBHC looseness leads to identification as Line-out */
+                qcom,msm-mbhc-hs-mic-max-threshold-mv = <2700>;
+        };
+};
+
+
+&qupv3_hub_i2c3 {
+        status = "okay";
+        /* AWINIC AW882XX Smart PA */
+        aw882xx_smartpa@35 {
+                compatible = "awinic,aw882xx_smartpa";
+                reg = <0x35>;
+                dc-flag = <0>;
+                sync-flag = <0>;
+                sound-channel = <0>;
+                aw-tx-topo-id = <0x1000ff00>;
+                aw-rx-topo-id = <0x1000ff01>;
+                aw-tx-port-id = <0x1007>;
+                aw-rx-port-id = <0x1006>;
+                aw-re-min = <4000>;
+                aw-re-max= <30000>;
+                /*aw-cali-mode = "none";*/
+                monitor-mode = "hal_monitor";
+        };
+        aw882xx_smartpa@34 {
+                compatible = "awinic,aw882xx_smartpa";
+                reg = <0x34>;
+                dc-flag = <0>;
+                sync-flag = <0>;
+                sound-channel = <1>;
+                aw-tx-topo-id = <0x1000ff00>;
+                aw-rx-topo-id = <0x1000ff01>;
+                aw-tx-port-id = <0x1007>;
+                aw-rx-port-id = <0x1006>;
+                aw-re-min = <4000>;
+                aw-re-max= <30000>;
+                /*aw-cali-mode = "none";*/
+                monitor-mode = "hal_monitor";
+        };
+};
+
+&qupv3_se0_i2c {
+	status = "ok";
+	/delete-node/ nq@28;
+	st21nfc: st21nfc@08 {
+		compatible = "st,st21nfc";
+		reg = <0x08>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <75  0>;
+		reset-gpios = <&tlmm 34 0x00>;
+		irq-gpios = <&tlmm 75 0x00>;
+		//boost-gpios = <&tlmm 90 0x00>;
+		//pidle-gpios = <&tlmm 48 0x00>;
+		clkreq-gpios = <&tlmm 35 0x00>;
+		//clocks = <&clock_rpmh RPMH_RF_CLK3>;
+		//clock-names = "nfc_ref_clk";
+		st,clk_pinctrl;
+		status = "ok";
+	};
+};
+
+&qupv3_se1_spi {
+	status = "ok";
+	st54spi: st54spi@0 {
+		compatible = "st,st54spi";
+		reg = <0>;
+		spi-max-frequency = <1000000>;
+		/* gpio used as SE_PWR_REQ or SE_nRESET */
+		gpio-power_nreset-std = <&tlmm 46 0x00>;
+
+		/* Power management mode: none, ST54H (default), ST54J */
+		power_mode = "ST54J";
+		status = "ok";
+	};
+};
+
+&qupv3_se11_spi {
+	status = "ok";
+	irled@0 {
+		status = "ok";
+		compatible = "zte,zte_ir";
+		reg = <0x0>;
+		spi-max-frequency = <5000000>;
+	};
+};
+
+/* add zte haptic start */
+&qupv3_hub_i2c4 {
+	status = "ok";
+	qcom,clk-freq-out = <1000000>;
+	haptic_hv@5A {
+		compatible = "awinic,haptic_hv";
+		reg = <0x5A>;
+		irq-gpio = <&tlmm 108 0>;
+		reset-gpio = <&tlmm 120 0>;
+		pinctrl-names = "irq_active";
+		pinctrl-0 = <&gpio108_input_pull_up>;
+		f0_pre = < 1700 >;
+		mode = /bits/ 8 < 5 >;
+		f0_cali_percent = /bits/ 8 < 7 >;
+/******************************aw8692x*******************************/
+		aw8692x_max_bst_vol = /bits/ 8 < 0x7F >;
+		aw8692x_cont_drv1_lvl = /bits/ 8 < 0x7F >;
+		aw8692x_cont_drv2_lvl = /bits/ 8 < 0x26 >; /* 0.9Vrms */
+		aw8692x_cont_drv1_time = /bits/ 8 < 0x04 >;
+		aw8692x_cont_drv2_time = /bits/ 8 < 0x14 >; /* 10 period */
+		aw8692x_cont_drv_width = /bits/ 8 < 0x71 >;
+		aw8692x_cont_wait_num = /bits/ 8 < 0x06 >;
+		aw8692x_cont_brk_time = /bits/ 8 < 0 >;
+		aw8692x_cont_track_margin = /bits/ 8 < 0x0C >;
+		aw8692x_brk_bst_md = /bits/ 8 < 0 >;
+		aw8692x_cont_tset = /bits/ 8 < 0x06 >;
+		aw8692x_cont_bemf_set = /bits/ 8 < 0x02 >;
+		aw8692x_cont_bst_brk_gain = /bits/ 8 < 0x05 >;
+		aw8692x_cont_brk_gain = /bits/ 8 < 0x08 >;
+		aw8692x_duration_time = /bits/ 8 < 20 30 60 >;
+		aw8692x_d2s_gain = /bits/ 8 < 0x04 >;
+		aw8692x_trig_config = /bits/ 8 < 0 0 0 1 0 2 0 0
+						 0 0 0 1 0 2 0 0
+						 0 0 0 1 0 2 0 0 >;
+		aw8692x_bst_vol_default = /bits/ 8 < 0x48 >; /* 8.0Vrms */
+		aw8692x_bst_vol_ram = /bits/ 8 < 0x48 >;
+		aw8692x_bst_vol_rtp = /bits/ 8 < 0x48 >;
+		/* aw8692x_is_enabled_auto_bst; */
+		/* aw8692x_is_enabled_one_wire; */
+	};
+};
+
+&qupv3_se15_4uart {
+	status = "ok";		/* zte add for rpcom*/
+	qcom,auto-suspend-disable;
+};
+
+&pm8010m_l3 {
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <3000000>;
+	qcom,init-voltage = <1800000>;
+};	/* add for rpcom uim power supply */
+
+&soc {
+	zte_tp:zte_tp {
+		compatible = "zte_tp";
+		zte,tp_algo;
+		zte,tp_jitter_check = <15>;
+		zte,tp_jitter_timer = <80>;
+		zte,tp_long_press;
+		zte,tp_long_press_timer = <800>;
+		zte,tp_long_press_left_v = <20>;
+		zte,tp_long_press_right_v = <20>;
+		zte,tp_long_press_left_h = <20>; /*camera */
+		zte,tp_long_press_right_h = <20>; /*charger */
+		zte,tp_edge_click_suppression_pixel = <32>;
+		zte,ufp_enable;
+		zte,ufp_circle_center_x = <9728>;
+		zte,ufp_circle_center_y = <32384>;
+		zte,ufp_circle_radius = <1920>;
+	};
+
+	gpio_keys_nubia {
+		status = "ok";
+		compatible = "gpio-keys_nubia";
+		label = "gpio-keys_nubia";
+		pinctrl-names ="default";
+		pinctrl-0 = <&gpio_keys_nubia_default>;
+		game_sw {
+			label = "game_sw";
+			gpios = <&tlmm 97 0>;
+			gpion = <&tlmm 174 0>;
+			linux,input-type = <5>;
+			linux,code = <0x0a>;
+			debounce-interval = <30>;
+			gpio-key,wakeup;
+		};
+	};
+
+    nubia_usb_switch_dp_gpio: nubia_usb_switch_dp_gpio_ctrl {
+        compatible = "nubia,usb_switch_dp";
+        status = "okay";
+    };
+
+	/* add for rpcom drivers*/
+	zte_rpcom {
+		compatible = "zte-rpcom";
+		uim_power-supply = <&L3M>;
+		linux,1p8-uv = <1800000>;
+		linux,3p0-uv = <3000000>;
+		pinctrl-names ="default";
+		pinctrl-0 = <&tt_poweron_default>, <&tt_reset_default>,
+			<&uim0_qc_on_default>, <&uim1_qc_on_default>,
+			<&uim0_sw_default>, <&uim1_sw_default>,
+			<&tt_rf_sw_default>, <&tt_download_default>,
+			<&tt_lna_3v3_en_default>, <&tt_trx_1p8_en_default>;
+		tt_poweron-gpios = <&tlmm 125 GPIO_ACTIVE_HIGH>;
+		tt_reset-gpios = <&tlmm 173 GPIO_ACTIVE_HIGH>;
+		tt_download-gpios = <&tlmm 171 GPIO_ACTIVE_HIGH>;
+		uim0_qc_on-gpios = <&tlmm 0 GPIO_ACTIVE_HIGH>;
+		uim1_qc_on-gpios = <&tlmm 100 GPIO_ACTIVE_HIGH>;
+		uim0_sw-gpios = <&tlmm 177 GPIO_ACTIVE_HIGH>;
+		uim1_sw-gpios = <&tlmm 178 GPIO_ACTIVE_HIGH>;
+		tt_rf_sw-gpios = <&tlmm 1 GPIO_ACTIVE_HIGH>;
+		uim_hotplug-gpios = <&tlmm 66 GPIO_ACTIVE_HIGH>;
+		tt_lna_3v3_en-gpios = <&tlmm 211 GPIO_ACTIVE_HIGH>;
+		tt_trx_1p8_en-gpios = <&tlmm 212 GPIO_ACTIVE_HIGH>;
+		status = "ok";
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		label = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&shoot_key_default &focus_key_default &key_vol_up_default>;
+
+		focus {
+			label = "focus_key";
+			gpios = <&tlmm 79 GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_KEY>;
+			linux,code = <KEY_CAMERA_FOCUS>;   //0x210 528
+			gpio-key,wakeup;
+			debounce-interval = <15>;
+			linux,can-disable;
+		};
+
+		shoot {
+			label = "shoot_key";
+			gpios = <&tlmm 95 GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_KEY>; //0x01
+			linux,code = <KEY_CAMERA>;  //212
+			gpio-key,wakeup;
+			debounce-interval = <15>;
+			linux,can-disable;
+		};
+	};
+
+};
+
+&sde_dp {
+	qcom,hbr2-3-voltage-swing = <0x28 0x32 0x36 0x3a>,
+				<0x29 0x39 0x3f 0xff>,
+				<0x30 0x3f 0xff 0xff>,
+				<0x3f 0xff 0xff 0xff>;
+};
+
+&pmih010x_eusb2_repeater {
+	qcom,param-override-seq =
+		/* <value reg_offset> */
+		/* Adjust HS trasmit amplitude */
+		<0xc 0x51
+		/* Disconnect Threshold */
+		 0x4 0x53
+		/* Tx pre-emphasis tuning */
+		 0x7 0x57>;
+};
+
+&tlmm {
+	gpio108_input_pull_up: gpio108_input_pull_up {
+		mux {
+			 pins = "gpio108";
+			 function = "gpio";
+		};
+
+		config {
+			pins = "gpio108";
+			drive-strength = <2>;
+			bias-pull-up;
+			input-enable;
+		};
+	};
+	focus_key {
+		focus_key_default: focus_key_default {
+			pins = "gpio79";
+			function = "gpio";
+			input-enable;
+			bias-disable;
+			drive-strength = <2>;   /* 2 mA */
+		};
+	};
+	shoot_key {
+		shoot_key_default: shoot_key_default {
+			pins = "gpio95";
+			function = "gpio";
+			input-enable;
+			bias-disable;
+			drive-strength = <2>;   /* 2 mA */
+		};
+	};
+	gpio_keys_nubia {
+		gpio_keys_nubia_default: gpio_keys_nubia_default {
+			pins = "gpio97", "gpio174";
+			function = "gpio";
+			input-enable;
+			bias-disable;
+		};
+	};
+};
+
+&tlmm {
+	tt_poweron_default{
+		tt_poweron_default: tt_poweron_default {
+			mux {
+				pins = "gpio125";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio125";
+				drive-strength = <8>;
+				bias-disable;
+			};
+		};
+	};
+
+	tt_reset_default{
+		tt_reset_default: tt_reset_default {
+			mux {
+				pins = "gpio173";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio173";
+				drive-strength = <8>;
+				bias-disable;
+			};
+		};
+	};
+
+	tt_download_default{
+		tt_download_default: tt_download_default {
+			mux {
+				pins = "gpio171";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio171";
+				drive-strength = <8>;
+				bias-disable;
+			};
+		};
+	};
+
+	uim0_qc_on_default{
+		uim0_qc_on_default: uim0_qc_on_default {
+			mux {
+				pins = "gpio0";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio0";
+				drive-strength = <8>;
+				bias-pull-up;
+			};
+		};
+	};
+
+	uim1_qc_on_default{
+		uim1_qc_on_default: uim1_qc_on_default {
+			mux {
+				pins = "gpio100";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio100";
+				drive-strength = <8>;
+				bias-pull-up;
+			};
+		};
+	};
+
+	uim0_sw_default{
+		uim0_sw_default: uim0_sw_default {
+			mux {
+				pins = "gpio177";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio177";
+				drive-strength = <8>;
+				bias-pull-up;
+			};
+		};
+	};
+
+	uim1_sw_default{
+		uim1_sw_default: uim1_sw_default {
+			mux {
+				pins = "gpio178";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio178";
+				drive-strength = <8>;
+				bias-pull-up;
+			};
+		};
+	};
+
+	tt_rf_sw_default{
+		tt_rf_sw_default: tt_rf_sw_default {
+			mux {
+				pins = "gpio1";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio1";
+				drive-strength = <8>;
+				bias-disable;
+			};
+		};
+	};
+
+	tt_lna_3v3_en_default{
+		tt_lna_3v3_en_default: tt_lna_3v3_en_default {
+			mux {
+				pins = "gpio211";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio211";
+				output-enable;
+			};
+		};
+	};
+
+	tt_trx_1p8_en_default{
+		tt_trx_1p8_en_default: tt_trx_1p8_en_default {
+			mux {
+				pins = "gpio212";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio212";
+				output-enable;
+			};
+		};
+	};
+};	// add for rpcom tiantong pinctrl
+
+&sdhc_2 {
+	status = "disabled";
+};
+
+&qupv3_se4_spi {
+	status = "ok";
+
+	gt9916@0 {
+		compatible = "goodix_thp";
+		reg = <0>;
+		spi-mode = <0>;
+		bits-per-word = <8>;
+		spi-max-frequency = <20000000>;
+		goodix,avdd-name = "avdd";
+		avdd-supply = <&L14B>;
+		goodix,iovdd-name = "vdd";
+		vdd-supply = <&L4B>;
+		chip-type = <2>; // 1: gt9897 2: gt9916 3: gt9966 4: gt9615
+		goodix,reset-gpio = <&tlmm 161 0x0>;
+		goodix,irq-gpio = <&tlmm 162 0x2>;
+		goodix,irq-flags = <2>; /* 1:trigger rising, 2:trigger falling;*/
+		goodix,panel-max-x = <19456>;
+		goodix,panel-max-y = <43008>;
+		goodix,panel-max-w = <4080>;
+		panel = <&dsi_bf237_rm692h5_6p8_dev0_dsc_cmd>;
+	};
+};
+
+&battery_charger {
+	qcom,shutdown-voltage = <2800>;
+};
+
+/* Started by AICoder, pid:9bdcct8e3df9d691416b0aff70d8ff3587920068 */
+//TOF: gpio206/207 changed to external pull-up
+&tlmm {
+	tof_qupv3_hub_i2c8_sda_active: tof_qupv3_hub_i2c8_sda_active {
+		mux {
+			pins = "gpio206";
+			function = "i2chub0_se8_l0";
+		};
+
+		config {
+			pins = "gpio206";
+			drive-strength = <2>;
+		};
+	};
+
+	tof_qupv3_hub_i2c8_scl_active: tof_qupv3_hub_i2c8_scl_active {
+		mux {
+			pins = "gpio207";
+			function = "i2chub0_se8_l1";
+		};
+
+		config {
+			pins = "gpio207";
+			drive-strength = <2>;
+		};
+	};
+};
+
+&qupv3_hub_i2c8 {
+	status = "ok";
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&tof_qupv3_hub_i2c8_sda_active>, <&tof_qupv3_hub_i2c8_scl_active>;
+};
+/* Ended by AICoder, pid:9bdcct8e3df9d691416b0aff70d8ff3587920068 */

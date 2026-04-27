@@ -1,0 +1,685 @@
+/* dtsi for qvkino board (PQ84P01)*/
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include "../zte-fingerprint-sun-goodix.dtsi"
+
+
+
+&reserved_memory {
+};
+
+&fm_i2s1_gpios {
+        status = "disabled";
+};
+
+&spf_core_platform  {
+	cdc_sec_mi2s_gpios: sec_mi2s_pinctrl {
+		status = "ok";
+		compatible = "qcom,msm-cdc-pinctrl";
+		pinctrl-names = "aud_active", "aud_sleep";
+		pinctrl-0 = <&i2s1_sck_active &i2s1_ws_active
+        	&i2s1_sd0_active &i2s1_sd1_active>;
+		pinctrl-1 = <&i2s1_sck_sleep &i2s1_ws_sleep
+        	&i2s1_sd0_sleep &i2s1_sd1_sleep>;
+	};
+ 
+	sun_snd: sound {
+		qcom,audio-routing =
+			"AMIC1", "Analog Mic1",
+			"AMIC1", "MIC BIAS1",
+			"AMIC2", "Analog Mic2",
+			"AMIC2", "MIC BIAS2",
+			"AMIC3", "Analog Mic3",
+			"AMIC3", "MIC BIAS3",
+			"AMIC4", "Analog Mic4",
+			"AMIC4", "MIC BIAS3",
+			"AMIC5", "Analog Mic5",
+			"AMIC5", "MIC BIAS4",
+			"VA AMIC1", "Analog Mic1",
+			"VA AMIC1", "VA MIC BIAS1",
+			"VA AMIC2", "Analog Mic2",
+			"VA AMIC2", "VA MIC BIAS2",
+			"VA AMIC3", "Analog Mic3",
+			"VA AMIC3", "VA MIC BIAS3",
+			"VA AMIC4", "Analog Mic4",
+			"VA AMIC4", "VA MIC BIAS3",
+			"VA AMIC5", "Analog Mic5",
+			"VA AMIC5", "VA MIC BIAS4",
+			"TX DMIC0", "Digital Mic0",
+			"TX DMIC0", "MIC BIAS3",
+			"TX DMIC1", "Digital Mic1",
+			"TX DMIC1", "MIC BIAS3",
+			"TX DMIC2", "Digital Mic2",
+			"TX DMIC2", "MIC BIAS1",
+			"TX DMIC3", "Digital Mic3",
+			"TX DMIC3", "MIC BIAS1",
+			"IN1_HPHL", "HPHL_OUT",
+			"IN2_HPHR", "HPHR_OUT",
+			"IN3_EAR", "AUX_OUT",
+			"RX_TX DEC0_INP", "TX DEC0 MUX",
+			"RX_TX DEC1_INP", "TX DEC1 MUX",
+			"RX_TX DEC2_INP", "TX DEC2 MUX",
+			"RX_TX DEC3_INP", "TX DEC3 MUX",
+			"TX SWR_INPUT", "WCD_TX_OUTPUT",
+			"VA SWR_INPUT", "VA_SWR_CLK",
+			"VA SWR_INPUT", "WCD_TX_OUTPUT",
+			"VA_AIF1 CAP", "VA_SWR_CLK",
+			"VA_AIF2 CAP", "VA_SWR_CLK",
+			"VA_AIF3 CAP", "VA_SWR_CLK",
+			"VA DMIC0", "Digital Mic0",
+			"VA DMIC1", "Digital Mic1",
+			"VA DMIC2", "Digital Mic2",
+			"VA DMIC3", "Digital Mic3",
+			"VA DMIC0", "VA MIC BIAS3",
+			"VA DMIC1", "VA MIC BIAS3",
+			"VA DMIC2", "VA MIC BIAS1",
+			"VA DMIC3", "VA MIC BIAS1";
+		qcom,msm-mbhc-usbc-audio-supported = <1>;
+		qcom,msm-mbhc-hphl-swh = <0>;
+		qcom,msm-mbhc-gnd-swh = <0>;
+                
+                qcom,mi2s-audio-intf = <1>;
+                qcom,sec-mi2s-gpios = <&cdc_sec_mi2s_gpios>;
+        };
+};
+
+&qupv3_hub_i2c3 {
+	status = "okay";
+	        tfa98xx@34 {
+			        compatible = "tfa,tfa98xx";
+					reg = <0x34>;
+					//reset-gpio = <&tlmm 81 0>;
+                                        //irq-gpio = <&tlmm 128 0x00>;
+					reset-polarity=<1>;
+			};
+		tfa98xx@35 {
+			        compatible = "tfa,tfa98xx";
+					reg = <0x35>;
+					//reset-gpio = <&tlmm 81 0>;
+                                        //irq-gpio = <&tlmm 127 0x00>;
+				        reset-polarity=<1>;
+			};
+};
+
+&qupv3_se5_i2c {
+	status = "ok";
+	sgm62110s@75 {
+			compatible = "sgm,sgm62110s";
+			reg = <0x75>;
+			status = "ok";
+	};
+};
+
+&soc {
+	hall_sensor {
+		compatible = "ah,hall_ic";
+		vddio-supply = <&L1B>;
+		linux,min-uv = <1800000>;
+		linux,max-uv = <1800000>;
+		ah,gpio_irq = <&tlmm 65 0x00>;
+		linux,name = "hall_sensor";
+	};
+
+	hall2_sensor {
+		compatible = "ah2,hall_ic2";
+		vddio-supply = <&L1B>;
+		linux,min-uv = <1800000>;
+		linux,max-uv = <1800000>;
+		ah2,gpio_irq = <&tlmm 66 0x00>;
+		linux,name = "hall2_sensor";
+	};
+
+	gpio_keys_nubia {
+		status = "ok";
+		compatible = "gpio-keys_nubia";
+		label = "gpio-keys_nubia";
+		pinctrl-names ="default";
+		pinctrl-0 = <&gpio_keys_nubia_default>;
+		game_sw {
+			label = "game_sw";
+			gpios = <&tlmm 198 0>;
+			gpion = <&tlmm 199 0>;
+			/* pole S is ↑, pole N is ↓, in PQ84P01 assembly, which is opposite */
+			linux,input-type = <5>;
+			linux,code = <0x0f>;
+			debounce-interval = <30>;
+			gpio-key,wakeup;
+		};
+	};
+
+    nubia_usb_switch_dp_gpio: nubia_usb_switch_dp_gpio_ctrl {
+        compatible = "nubia,usb_switch_dp";
+        status = "okay";
+    };
+	
+	zte_tp:zte_tp {
+		compatible = "zte_tp";
+		zte,tp_algo;
+		zte,tp_jitter_check = <1>;
+		zte,tp_jitter_timer = <80>;
+		zte,tp_long_press;
+		zte,tp_long_press_timer = <800>;
+		zte,tp_long_press_left_v = <0>;
+		zte,tp_long_press_right_v = <0>;
+		zte,tp_long_press_left_h = <0>; /*camera */
+		zte,tp_long_press_right_h = <0>; /*charger */
+		zte,tp_edge_click_suppression_pixel = <0>;
+		zte,ufp_enable;
+		//zte,ufp_circle_center_x = <540>;
+		//zte,ufp_circle_center_y = <1703>;
+		//zte,ufp_circle_radius = <80>;
+	};
+
+	nubia_hw_ver_gpio: nubia_hw_gpio_ctrl {
+		compatible = "nubia_hw_gpio_ctrl";
+		qcom,pcb-gpio1 = <&tlmm 105 0x00>;
+		qcom,pcb-gpio2 = <&tlmm 106 0x00>;
+		qcom,pcb-gpio3 = <&tlmm 107 0x00>;
+		qcom,rf-gpio1 = <&tlmm 138 0x00>;
+		qcom,rf-gpio2 = <&tlmm 139 0x00>;
+		pinctrl-names = "pull_up_default","pull_down_default";
+		pinctrl-0 = <&nubia_gpio_default>;
+		pinctrl-1 = <&nubia_gpio_pulldown>;
+	};
+};
+
+/***************************awinic start******************************/
+&qupv3_hub_i2c4  {
+	status = "ok";
+	qcom,clk-freq-out = <1000000>;
+	haptic_hv_l@5A {
+		compatible = "awinic,haptic_hv_l";
+		reg = <0x5A>;
+		irq-gpio = <&tlmm 171 0>;
+		reset-gpio = <&tlmm 182 0>;
+		pinctrl-names = "irq_active";
+		pinctrl-0 = <&gpio171_input_pull_up>;
+		f0_pre = < 1700 >;
+		mode = /bits/ 8 < 5 >;
+
+		aw8693x_f0_cali_percent = /bits/ 8 < 15 >;
+		aw8693x_gain_bypass = /bits/ 8 < 1 >;
+		aw8693x_uvlo_vol_default = /bits/ 8 < 0 >;
+		aw8693x_cont_smart_loop = /bits/ 8 < 0 >;
+		aw8693x_cont_drv1_lvl = /bits/ 8 < 0x7F >;
+		aw8693x_cont_lra_vrms = < 1000 >;
+		aw8693x_cont_drv1_time = /bits/ 8 < 0x04 >;
+		aw8693x_cont_drv2_time = /bits/ 8 < 0x14 >;
+		aw8693x_cont_track_margin = /bits/ 8 < 0x0F >;
+		aw8693x_cont_brk_gain = /bits/ 8 < 0x08 >;
+		aw8693x_cont_brk_time = /bits/ 8 < 0x08 >;
+		aw8693x_duration_time = /bits/ 8 < 20 30 60 >;
+		aw8693x_d2s_gain = /bits/ 8 < 0x04 >;
+		aw8693x_trig_config = /bits/ 8 < 0 0 0 1 0 2 0 0
+						 0 0 0 1 0 2 0 0
+						 0 0 0 1 0 2 0 0 >;
+		aw8693x_bst_vol_default = /bits/ 8 < 0x0f >;
+		aw8693x_is_enabled_track_en;
+		/* aw8693x_is_enabled_auto_bst; */
+		/* aw8693x_is_enabled_one_wire; */
+	};
+
+	haptic_hv_r@5B {
+		compatible = "awinic,haptic_hv_r";
+		reg = <0x5B>;
+		irq-gpio = <&tlmm 177 0>;
+		reset-gpio = <&tlmm 178 0>;
+		pinctrl-names = "irq_active";
+		pinctrl-0 = <&gpio177_input_pull_up>;
+		f0_pre = < 1700 >;
+		mode = /bits/ 8 < 5 >;
+
+		aw8693x_f0_cali_percent = /bits/ 8 < 15 >;
+		aw8693x_gain_bypass = /bits/ 8 < 1 >;
+		aw8693x_uvlo_vol_default = /bits/ 8 < 0 >;
+		aw8693x_cont_smart_loop = /bits/ 8 < 0 >;
+		aw8693x_cont_drv1_lvl = /bits/ 8 < 0x7F >;
+		aw8693x_cont_lra_vrms = < 1000 >;
+		aw8693x_cont_drv1_time = /bits/ 8 < 0x04 >;
+		aw8693x_cont_drv2_time = /bits/ 8 < 0x14 >;
+		aw8693x_cont_track_margin = /bits/ 8 < 0x0F >;
+		aw8693x_cont_brk_gain = /bits/ 8 < 0x08 >;
+		aw8693x_cont_brk_time = /bits/ 8 < 0x08 >;
+		aw8693x_duration_time = /bits/ 8 < 20 30 60 >;
+		aw8693x_d2s_gain = /bits/ 8 < 0x04 >;
+		aw8693x_trig_config = /bits/ 8 < 0 0 0 1 0 2 0 0
+						 0 0 0 1 0 2 0 0
+						 0 0 0 1 0 2 0 0 >;
+		aw8693x_bst_vol_default = /bits/ 8 < 0x0f >;
+		aw8693x_is_enabled_track_en;
+		/* aw8693x_is_enabled_auto_bst; */
+		/* aw8693x_is_enabled_one_wire; */
+	};
+};
+
+&tlmm {
+	gpio171_input_pull_up: gpio171_input_pull_up {
+		mux {
+			 pins = "gpio171";
+			 function = "gpio";
+		};
+
+		config {
+			pins = "gpio171";
+			drive-strength = <2>;
+			bias-pull-up;
+			input-enable;
+		};
+	};
+
+	gpio177_input_pull_up: gpio177_input_pull_up {
+		mux {
+			 pins = "gpio177";
+			 function = "gpio";
+		};
+
+		config {
+			pins = "gpio177";
+			drive-strength = <2>;
+			bias-pull-up;
+			input-enable;
+		};
+	};
+
+	gpio_keys_nubia {
+		gpio_keys_nubia_default: gpio_keys_nubia_default {
+			pins = "gpio198", "gpio199";
+			function = "gpio";
+			input-enable;
+			bias-disable;
+		};
+	};
+
+	nubia_gpio {
+		nubia_gpio_default: nubia_gpio_default {
+			mux {
+				pins = "gpio105", "gpio106", "gpio107", "gpio138", "gpio139";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio105", "gpio106", "gpio107", "gpio138", "gpio139";
+				driver-strength = <2>; /* 2mA */
+				bias-pull-up;
+				input-enable;
+			};
+		};
+
+		nubia_gpio_pulldown: nubia_gpio_pulldown {
+			mux {
+				pins = "gpio105", "gpio106", "gpio107", "gpio138", "gpio139";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio105", "gpio106", "gpio107", "gpio138", "gpio139";
+				driver-strength = <2>; /* 2mA */
+				bias-pull-down;
+				input-enable;
+			};
+		};
+	};
+
+	bos1921_pwren {
+		bos1921_pwren_active: bos1921_pwrent_active {
+			mux {
+				pins = "gpio60";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio60";
+				drive-strength = <6>;
+				bias-pull-up;
+			};
+		};
+
+		bos1921_pwren_suspend: bos1921_pwren_suspend {
+			mux {
+				pins = "gpio60";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio60";
+				drive-strength = <6>;
+				bias-pull-up;
+			};
+		};
+	};
+	qupv3_se8_i2c_pins: qupv3_se8_i2c_pins {
+		qupv3_se8_i2c_sda_active: qupv3_se8_i2c_sda_active {
+			mux {
+				pins = "gpio0";
+				function = "qup2_se0_l0";
+			};
+
+			config {
+				pins = "gpio0";
+				drive-strength = <2>;
+				bias-pull-up;
+				//qcom,i2c_pull;
+			};
+		};
+
+		qupv3_se8_i2c_scl_active: qupv3_se8_i2c_scl_active {
+			mux {
+				pins = "gpio1";
+				function = "qup2_se0_l1";
+			};
+
+			config {
+				pins = "gpio1";
+				drive-strength = <2>;
+				bias-pull-up;
+				//qcom,i2c_pull;
+			};
+		};
+		qupv3_se8_i2c_sleep: qupv3_se8_i2c_sleep {
+			mux {
+				pins = "gpio0", "gpio1";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio0", "gpio1";
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
+	};
+};
+
+
+/***************************awinic end******************************/
+
+&qupv3_hub_i2c3 {
+	status = "okay";
+
+	/*aw22xxx_led*/
+	aw22xxx_led@6a {
+		status = "okay";
+		compatible = "awinic,aw22xxx_led";
+		reg = <0x6a>;
+		reset-gpio = <&tlmm 173 0x0>;
+		nubia_ver-gpio = <&tlmm 7 1>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <174 0x2002>;
+		irq-gpio = <&tlmm 174 0x2002>;
+		qcom,clk-freq-out = <400000>;
+		pinctrl-names = "aw22xxx_led_default", "aw22xxx_led_sleep";
+		pinctrl-0 = <&aw22xxx_int_active &aw22xxx_reset_active>;
+		pinctrl-1 = <&aw22xxx_int_suspend &aw22xxx_reset_suspend>;
+		cfg_custom_en = <1>;
+		/*aw22xxx_cfg_name[0:13] en flag */
+		cfg_base_en = <1 1 1 1 0 0 0 0 1 1 1 1 1 1 1>;
+		/*steady lighting up,breath,flashing,flow,ripple,echo,hopping,fast flashing,follows the audio,two flashing*/
+		cfg_modex_count = <16 16 16 16 16 16 16 16 16 16>;
+		touch_modex_count = <14 14 14 7 7 7 7 14 15 7>;
+		fan_modex_count = <16 16 16 16 16>;
+		aw22xxx,led {
+			aw22xxx,name = "aw22xxx_led";
+			aw22xxx,imax = <9>;
+			aw22xxx,brightness = <128>;
+			aw22xxx,max_brightness = <255>;
+		};
+	};
+};
+
+/*aw22xxx_led*/
+&tlmm{
+	aw22xxx_reset {
+		aw22xxx_reset_active: aw22xxx_reset_active {
+			mux {
+				pins = "gpio173";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio173";
+				drive-strength = <6>;
+				bias-pull-up;
+			};
+		};
+
+		aw22xxx_reset_suspend: aw22xxx_reset_suspend {
+			mux {
+				pins = "gpio173";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio173";
+				drive-strength = <6>;
+				bias-pull-up;
+			};
+		};
+	};
+
+	aw22xxx_int {
+		aw22xxx_int_active: aw22xxx_int_active {
+			mux {
+				pins = "gpio174";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio174";
+				drive-strength = <6>;
+				bias-pull-up;
+			};
+		};
+		aw22xxx_int_suspend: aw22xxx_int_suspend {
+			mux {
+				pins = "gpio174";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio174";
+				drive-strength = <6>;
+				bias-pull-up;
+			};
+		};
+	};
+};
+
+&qupv3_hub_i2c8 {  // 9a0000
+        status = "ok";
+        fmtag: fmtag@57 {
+                compatible = "fm,fmtag";
+                reg = <0x57>;
+                interrupt-parent = <&tlmm>;
+                interrupts = <108 0>;
+                irq-gpios = <&tlmm 108 0x00>;
+                reset-gpios = <&tlmm 81 0x00>;
+                vdd-supply = <&L3M>;
+                status = "ok";
+        };
+
+		bos1921@44 {
+			compatible = "zte,bos1921","awinic,aw86320";
+			reg = < 0x44 >;
+			irq-gpio = <&tlmm 57 0x00>;
+			reset-gpios = <&tlmm 60 0x00>;
+			pinctrl-names = "bos1921_pwren_active", "bos1921_pwren_suspend";
+			pinctrl-0 = <&bos1921_pwren_active>;
+			pinctrl-1 = <&bos1921_pwren_suspend>;
+			//is_fifo_method_play;
+			is_reg_method_play;
+			atsin0_polor = < 0x00 >;
+			atsin0_phase = < 0x00 >;
+			status = "okay";
+		};
+};
+
+&pm8010m_l3 {
+        regulator-min-microvolt = <3300000>;
+        regulator-max-microvolt = <3300000>;
+        qcom,init-voltage = <3300000>;
+};
+
+/*fan start*/
+&tlmm {
+    fan_speed{
+        fan_speed: fan_speed {
+			mux {
+				pins = "gpio183";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio183";
+				drive-strength = <16>;
+				bias-pull-up;
+				input-enable;
+			};
+
+        };
+    };
+};
+
+&pm8550_gpios {
+    fan_pwm {
+        fan_pwm: fan_pwm {
+			pins = "gpio9";
+			function = "func1";
+			input-disable;
+			output-enable;
+			output-high;
+			qcom,drive-strength = <3>;
+			power-source = <0>;     /* 1.8V */
+			drive-push-pull;
+	    };
+    };
+};
+
+&pm8010m_l7 {
+	regulator-max-microvolt = <3008000>;
+};
+
+&spmi_bus {
+    qcom,pm8550@1 {
+        fan_pwm_dev: pwms@eb00 {
+            compatible = "qcom,pm8350c-pwm";
+            reg = <0xeb00>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+            #pwm-cells = <2>;
+        };
+
+        nb_fan: qcom,fan@ef00 {
+            compatible = "soc,fan";
+            reg = <0xef00>;
+            fan,avdd-supply = <&pm8010m_l7>;
+            regulator-names = "avdd";
+            pinctrl-names ="default";
+            pinctrl-0 =<&fan_speed &fan_pwm>;
+            fan,pwm-gpio = <&pm8550_gpios 9 GPIO_ACTIVE_HIGH>;
+            fan,speed-gpio = <&tlmm 183 GPIO_ACTIVE_HIGH>;
+            fan,voltage = <3008000>;
+            fan {
+                label = "fan";
+                pwms = <&fan_pwm_dev 3 40000>;
+            };
+	    };
+    };
+};
+/*fan end*/
+
+&usb0 {
+	qcom,wcd_usbss = <&wcd_usbss>;
+};
+
+&wcd_usbss {
+	wcd-usb-sbu-compliance;
+};
+
+/* begin usb2.0 eye diagram */
+&pmih010x_eusb2_repeater {
+	qcom,param-override-seq =
+		/* <value reg_offset> */
+		/* Adjust HS trasmit amplitude */
+		<0xa 0x51
+		/* HS Disconnect Threshold */
+		 0x2 0x53>;
+};
+/* end usb2.0 eye diagram */
+
+/* TP SYNA_TCM2_S3930T Start */
+&qupv3_se4_spi {
+	status = "ok";
+
+	synaptics_tcm@0 {
+		compatible = "synaptics,tcm-spi";
+		reg = <0>;
+		spi-max-frequency = <10000000>;
+		spi-cs-setup-ns = <11000>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <162 0x2008>;
+		vdd-supply = <&L4B>;
+		avdd-supply = <&L14B>;
+		synaptics,vio-name = "vdd";
+		synaptics,vdd-name = "avdd";
+		synaptics,power-delay-ms = <200>;
+		synaptics,irq-gpio = <&tlmm 162 0x2008>;
+		synaptics,irq-on-state = <0>;
+		synaptics,reset-gpio = <&tlmm 161 0x0000>;
+		synaptics,reset-on-state = <0>;
+		synaptics,reset-active-ms = <20>;
+		synaptics,reset-delay-ms = <200>;
+		synaptics,spi-mode = <0>;
+		synaptics,spi-byte-delay-us = <0>;
+		synaptics,spi-block-delay-us = <0>;
+
+		pinctrl-names = "ts_active", "ts_suspend";
+		pinctrl-0 = <&ts_active>;
+		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
+		pinctrl-2 = <&ts_release>;
+
+		panel = <&dsi_himax_hx8874_9p06_dsc_cmd>;
+	};
+
+	himax_tp@1 {
+		compatible = "himax,hxcommon";
+		reg = <0x1>;
+		spi-max-frequency = <5000000>;
+		spi-cpha;
+		pinctrl-names = "pmx_ts_active", "pmx_ts_suspend";
+		pinctrl-0 = <&ts_active>;
+		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <162 0x2008>;
+		himax,iovdd-name = "vdd";
+		himax,avdd-name = "avdd";
+		vdd-supply = <&L4B>;
+		avdd-supply = <&L14B>;
+		himax,panel-coords = <0 1504 0 2400>;
+		himax,display-coords = <0 1504 0 2400>;
+		himax,irq-gpio = <&tlmm 162 0x2008>;
+		himax,rst-gpio = <&tlmm 161 0x0000>;
+		report_type = <1>;
+
+		panel = <&dsi_himax_hx8874_9p06_dsc_cmd>;
+	};
+};
+/* SYNA_TCM2_S3930T End */
+
+&battery_charger {
+	/* external thermal-mitigation for different case,each case 10 levels,base is level=1
+	usb screen off
+	usb screen on 
+	wls screen on
+	wls screen off*/
+	qcom,thermal-mitigation = < 13000000 11000000 10000000 8000000 6000000 5000000 4000000 2000000 1500000 1000000
+		10000000 7000000 6000000 5000000 4000000 3000000 1000000 800000  800000 0
+		10000000 8000000 6000000 4000000 3000000 2000000 1500000 1000000 500000 300000
+		8000000 6000000 5000000 1000000 1000000 1000000  800000  500000 500000 300000
+		>;
+};
+
+&soc {
+	charger_policy_service{
+		policy,timeout-seconds = <172800>;/* 48 hours */
+	};
+};
+
+&ibat_lvl0 {
+	temperature = <11500>;
+};
+
+&ibat_lvl1 {
+	temperature = <13000>;
+};
+

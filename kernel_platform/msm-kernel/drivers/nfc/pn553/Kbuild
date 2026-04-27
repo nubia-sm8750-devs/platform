@@ -1,0 +1,9 @@
+obj-$(CONFIG_NXP_PN553_NFC_I2C) += zte_nfc.o
+
+BOARD_VENDOR_KERNEL_MODULES +=  $(KERNEL_MODULES_OUT)/zte_nfc.ko
+
+zte_nfc-$(CONFIG_NXP_PN553_NFC_I2C) += common.o \
+               common_ese.o \
+               i2c_drv.o
+
+ccflags-y += -DDYNAMIC_DEBUG_MODULE
