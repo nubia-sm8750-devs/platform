@@ -327,6 +327,153 @@ err_vdd18:
 	return ret;
 }
 
+/* for usb eye diagram test */
+static struct eusb2_repeater *the_repeater_phy;
+static int param_override_testing = 0;
+static char *default_parameter;
+static int default_parameter_caught = 0;
+static int param_override[] = {
+	-1, -1,
+	-1, -1,
+	-1, -1,
+	-1, -1,
+	-1, -1,
+	-1, -1,
+	-1
+};
+
+static int get_default_diagram_parameter(char *buf)
+{
+	int i = 0;
+	u8 reg[6] = {0x51, 0x52, 0x53, 0x54, 0x56, 0x57};
+	u8 val;
+	char *buff = buf;
+	struct eusb2_repeater *er = the_repeater_phy;
+
+	for (i = 0; i < 6; i++) {
+		eusb2_repeater_reg_read(er, &val, reg[i], 1);
+		buff += scnprintf(buff, PAGE_SIZE,
+			"0x%02x,0x%02x,", reg[i], val);
+	}
+	if (buff != buf)
+		*(buff-1) = '\n';
+	return buff - buf;
+}
+
+static void param_override_init(struct eusb2_repeater *er)
+{
+	/*struct msm_otg_platform_data *pdata = motg->pdata;*/
+	/*seq = pdata->phy_init_seq_override if need*/
+	int *seq = NULL;
+
+	if (param_override_testing) {
+		seq = param_override;
+		/*phy->pdata->phy_init_seq = param_override;*/
+	}
+
+	if (!seq) {
+		dev_info(er->ur.dev, "usb %s is null, skip\n", __func__);
+		return;
+	}
+	while (seq[0] >= 0) {
+		dev_info(er->ur.dev, "usb %s: write 0x%02x to 0x%02x\n",
+				__func__, seq[1], seq[0]);
+		eusb2_repeater_reg_write(er, seq[0], seq[1]);
+		seq += 2;
+	}
+}
+
+/* Started by AICoder, pid:n3c32ac7fae55cd147020847800ba15fbce66607 */
+static int diagram_param_write(const char *val, const struct kernel_param *kp)
+{
+    int err, size, i = 0;
+    char buf[256] = {0};
+    char *b;
+    char *value;
+    int count;
+    unsigned long tmp;
+    struct eusb2_repeater *er = the_repeater_phy;
+
+    dev_info(er->ur.dev, "usb %s val = %s\n", __func__, val);
+
+    if (!default_parameter_caught) {
+        if (default_parameter == NULL) {
+            dev_err(er->ur.dev, "%s default_parameter is null\n", __func__);
+            return -EINVAL;
+        }
+
+        count = get_default_diagram_parameter(default_parameter);
+        if (count > 0)
+            dev_info(er->ur.dev,
+                             "%s, get default diagram parameter ok, count:%d\n", __func__, count);
+        default_parameter_caught = 1;
+    }
+
+    if (strcmp(val, "default") == 0) {
+        dev_info(er->ur.dev, "set default diagram parameters\n");
+        param_override_testing = 0;
+        goto out;
+    }
+
+    size = sizeof(param_override)-1;
+    strscpy(buf, val, sizeof(buf));
+    b = strim(buf);
+    while (b) {
+        value = strsep(&b, ",");
+        if (value) {
+            err = kstrtoul(value, 16, &tmp);
+            if (err) {
+                dev_err(er->ur.dev, "%s kstrtoul failed\n", __func__);
+                param_override_testing = 0;
+                goto out;
+            }
+            if (i < size)
+                param_override[i] = (int)tmp;
+            i++;
+            if (!param_override_testing)
+                param_override_testing = 1;
+        }
+    }
+
+    param_override_init(er);
+
+out:
+    return strlen(val);
+}
+/* Ended by AICoder, pid:n3c32ac7fae55cd147020847800ba15fbce66607 */
+
+/* Started by AICoder, pid:tcfd6qcd4d8c6271426e0a8aa02423254666035c */
+static int diagram_param_read(char *buf, const struct kernel_param *kp)
+{
+    struct eusb2_repeater *er = the_repeater_phy;
+    int count;
+
+    if (default_parameter == NULL) {
+        dev_err(er->ur.dev, "%s default_parameter is null\n", __func__);
+        return -EINVAL;
+    }
+
+    if (default_parameter_caught == 1) {
+        strncpy(buf, default_parameter, strlen(default_parameter) + 1);
+        return strlen(buf);
+    }
+
+    count = get_default_diagram_parameter(default_parameter);
+    if (count > 0) {
+        dev_info(er->ur.dev,
+            "%s, get default diagram parameter ok, count:%d\n", __func__, count);
+        default_parameter_caught = 1;
+        strncpy(buf, default_parameter, strlen(default_parameter) + 1);
+        return strlen(buf);
+    }
+
+    return 0;
+}
+/* Ended by AICoder, pid:tcfd6qcd4d8c6271426e0a8aa02423254666035c */
+
+module_param_call(diagram_param, diagram_param_write, diagram_param_read, NULL, 0664);
+MODULE_PARM_DESC(diagram_param, "USB eye diagram_param");
+
 #define INIT_MAX_CNT 5
 static int eusb2_repeater_init(struct usb_repeater *ur)
 {
@@ -342,6 +489,8 @@ static int eusb2_repeater_init(struct usb_repeater *ur)
 	if (ur->flags & PHY_HOST_MODE)
 		eusb2_repeater_update_seq(er, er->host_param_override_seq,
 				er->host_param_override_seq_cnt);
+
+	param_override_init(er);
 
 	/* override tune params using debugfs based values */
 	if (er->usb2_crossover <= 0x7)
@@ -547,6 +696,12 @@ static int eusb2_repeater_probe(struct platform_device *pdev)
 		goto err_probe;
 
 	eusb2_repeater_create_debugfs(er);
+
+	default_parameter = devm_kcalloc(dev, 100, sizeof(char), GFP_KERNEL);
+	if (!default_parameter) {
+		dev_err(er->ur.dev, "failed to allocate memory for default_parameter\n");
+	}
+	the_repeater_phy = er;
 	return 0;
 
 err_probe:

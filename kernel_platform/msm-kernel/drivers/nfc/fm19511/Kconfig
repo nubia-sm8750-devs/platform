@@ -1,0 +1,12 @@
+#
+# fm19511 nfc tag driver configuration
+#
+
+config NFC_TAG_FM19511
+	tristate "ST NCI based NFC Driver for ST54J"
+	depends on I2C && SPI
+	help
+	  This enables the NFC driver for ST54J based devices.
+	  This is for i2c connected with NFC controller and spi connected
+	  with eSE.NCI protocol logic resides in the usermode and it has
+	  no other NFC dependencies.

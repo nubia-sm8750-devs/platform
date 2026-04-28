@@ -1,4 +1,5 @@
 load(":display_driver_build.bzl", "display_module_entry")
+load(":targets/zte_disp.bzl", "get_zte_disp_bulid_srcs")
 
 display_driver_modules = display_module_entry([":display_drivers_headers"])
 module_entry = display_driver_modules.register
@@ -154,17 +155,6 @@ module_entry(
             "msm/dsi/dsi_clk_manager.c",
             "msm/dsi/dsi_display_test.c",
          ],
-         "CONFIG_DRM_ZTE_DISP" : [
-            "msm/zte_disp/zte_disp_panel.c",
-            "msm/zte_disp/zte_disp_panel_info.c",
-            "msm/zte_disp/zte_disp_feature.c",
-            "msm/zte_disp/zte_disp_backlight.c",
-            "msm/zte_disp/zte_disp_work.c",
-            "msm/zte_disp/zte_disp_layer.c",
-            "msm/zte_disp/zte_disp_sync_frame.c",
-            "msm/zte_disp/zte_lcd_reg_debug.c",
-            "msm/zte_disp/zte_disp_pm.c",
-         ],
          "CONFIG_DSI_PARSER" : [
             "msm/dsi/dsi_parser.c",
          ],
@@ -200,7 +190,7 @@ module_entry(
                               "rotator/sde_rotator_r1_debug.c",
                               "rotator/sde_rotator_r3_debug.c"],
             },
-      },
+      } | get_zte_disp_bulid_srcs(),
       deps = [
          "//vendor/qcom/opensource/mm-drivers:mm_drivers_headers",
       ],

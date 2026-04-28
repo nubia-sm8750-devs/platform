@@ -15,6 +15,14 @@
 
 #define MAX_POINTS_SUPPORT 10
 #define LONG_PRESS_MIN_COUNT 50
+
+/* Started by AICoder, pid:x50c7s2e5cf41de140980bea302821060ce6eda3 */
+#define SINGLE_TAP_INTERVAL 150
+#define DOUBLE_TAP_INTERVAL 300
+#define SINGLE_DISTANCE 80
+#define DOUBLE_DISTANCE 1600
+/* Ended by AICoder, pid:x50c7s2e5cf41de140980bea302821060ce6eda3 */
+
 static void edge_point_report(int id);
 static void edge_long_press_up(struct input_dev *input, u16 id);
 static void point_report_reset(int id);
@@ -22,7 +30,13 @@ static bool is_have_other_point_down(int id);
 static bool is_have_inside_point_down(void);
 void tpd_touch_release(struct input_dev *input, u16 id);
 
+#ifdef CONFIG_TOUCHSCREEN_GOODIX_BRL_THP
+extern int goodix_thp_save_debug(int enable);
+extern int goodix_thp_save_dump_log(void);
+#endif
+
 int is_fake_sleep_mode;
+int is_screen_off_awake_mode;
 
 typedef struct point_info {
 	int x;
@@ -36,6 +50,8 @@ typedef struct point_fifo {
 	tpd_point_info_t first_report_point_data;
 	tpd_point_info_t last_point;
 	tpd_point_info_t mistake_touch_check_point;
+	tpd_point_info_t save_last_point;/*for screen_on double_tap*/
+	unsigned long first_down_timer;
 	bool is_report_point;
 	bool save_first_down_point;
 	bool is_moving_in_limit_area;
@@ -512,15 +528,32 @@ void tpd_touch_release(struct input_dev *input, u16 id)
 		 		point->last_point.x, point->last_point.y, point->down_up_time);
 
 		if (is_fake_sleep_mode) {
-			if (jiffies_to_msecs(jiffies - point->touch_down_timer) < 150) {
-						if (abs(point->first_report_point_data.x - point->last_point.x) < 80
-							&& abs(point->first_report_point_data.y - point->last_point.y) < 80) {
+			if (jiffies_to_msecs(jiffies - point->touch_down_timer) < SINGLE_TAP_INTERVAL) {
+						if (abs(point->first_report_point_data.x - point->last_point.x) < SINGLE_DISTANCE
+							&& abs(point->first_report_point_data.y - point->last_point.y) < SINGLE_DISTANCE) {
 #ifdef CONFIG_TOUCHSCREEN_UFP_MAC
 							ufp_report_gesture_uevent(SINGLE_TAP_GESTURE);
 #endif
 						}
 			}
 		}
+
+/* Started by AICoder, pid:m50c732e5ca41de140980bea302821260ce1eda3 */
+		if (is_screen_off_awake_mode) {
+			if (jiffies_to_msecs(jiffies - point->first_down_timer) < DOUBLE_TAP_INTERVAL) {
+				if (jiffies_to_msecs(jiffies - point->touch_down_timer) < SINGLE_TAP_INTERVAL) {
+						if (abs(point->first_report_point_data.x - point->last_point.x) < SINGLE_DISTANCE
+							&& abs(point->first_report_point_data.y - point->last_point.y) < SINGLE_DISTANCE
+							&& abs(point->first_report_point_data.x - point->save_last_point.x) <DOUBLE_DISTANCE
+							&& abs(point->first_report_point_data.y - point->save_last_point.y) <DOUBLE_DISTANCE) {
+#ifdef CONFIG_TOUCHSCREEN_UFP_MAC
+							ufp_report_gesture_uevent(DOUBLE_TAP_GESTURE);
+#endif
+						}
+				}
+			}
+		}
+/* Ended by AICoder, pid:m50c732e5ca41de140980bea302821260ce1eda3 */
 		mutex_unlock(&cdev->report_mutex);
 #ifdef TOUCH_DOWN_UP_ZLOG
 		if ((point->down_up_time < cdev->ghost_check_start_time) && !point->edge_area_move){
@@ -564,6 +597,11 @@ void tpd_touch_release(struct input_dev *input, u16 id)
 	point->jitter_check = false;
 	point->mistake_touch_check = false;
 	point->cancel_clean_edge_area_ponit = false;
+	if (is_screen_off_awake_mode) {
+		point->save_last_point.x = point->first_report_point_data.x;/*for screen_on double_tap*/
+		point->save_last_point.y = point->first_report_point_data.y;
+		point->first_down_timer = point->touch_down_timer;
+	}
 }
 EXPORT_SYMBOL_GPL(tpd_touch_release);
 
@@ -627,6 +665,10 @@ ghost_point_report_log:
 		}
 	};
 	TPD_DMESG("%s:%s", __func__, log_buffer);
+#ifdef CONFIG_TOUCHSCREEN_GOODIX_BRL_THP
+	goodix_thp_save_debug(1);
+	goodix_thp_save_dump_log();
+#endif
 #ifdef CONFIG_VENDOR_ZTE_DEV_MONITOR_SYSTEM
 	tpd_print_zlog(log_buffer);
 	tpd_zlog_record_notify(TP_GHOST_ERROR_NO);

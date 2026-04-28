@@ -148,7 +148,7 @@ err_pctrl_get:
 	return ret;
 }
 
-//开始进入第一大部分-读取pcb版本部分
+//驴陋脢录陆酶脠毛碌脷脪禄麓贸虏驴路脰-露脕脠隆pcb掳忙卤戮虏驴路脰
 #ifdef CONFIG_NUBIA_HW_VER_BY_ADC
 const struct hw_pcb_adc_map_str* nubia_get_pcb_table_item_by_adc(const struct hw_pcb_adc_map_str *pts,
 	   uint32_t tablesize, int input)
@@ -195,7 +195,7 @@ const struct hw_pcb_gpio_map_str* nubia_get_pcb_table_item_by_gpio(const struct 
 		return NULL;
 }
 #endif
-//读取pcb type，给其他驱动模块使用
+//露脕脠隆pcb type拢卢赂酶脝盲脣没脟媒露炉脛拢驴茅脢鹿脫脙
 int nubia_get_hw_id(void)
 {
 #ifdef CONFIG_NUBIA_HW_VER_BY_ADC
@@ -217,7 +217,7 @@ int nubia_get_hw_id(void)
 }
 EXPORT_SYMBOL_GPL(nubia_get_hw_id);
 
-//读取pcb版本，给其他驱动模块使用
+//露脕脠隆pcb掳忙卤戮拢卢赂酶脝盲脣没脟媒露炉脛拢驴茅脢鹿脫脙
 void nubia_get_hw_pcb_version(char* result)
 {
 #ifdef CONFIG_NUBIA_HW_VER_BY_ADC
@@ -240,7 +240,7 @@ void nubia_get_hw_pcb_version(char* result)
 }
 EXPORT_SYMBOL_GPL(nubia_get_hw_pcb_version);
 
-//读取pcb版本，给上层同事使用
+//露脕脠隆pcb掳忙卤戮拢卢赂酶脡脧虏茫脥卢脢脗脢鹿脫脙
 static ssize_t nubia_hw_pcb_version_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
@@ -254,14 +254,14 @@ static ssize_t nubia_hw_pcb_version_show(struct kobject *kobj,
 static struct kobj_attribute pcb_version_attr=
 	__ATTR(pcb_version, 0664, nubia_hw_pcb_version_show, NULL);
 
-//读取Pcb部分结束
+//露脕脠隆Pcb虏驴路脰陆谩脢酶
 
-//用于区分NX689J or NX689J_v1s
+//脫脙脫脷脟酶路脰NX689J or NX689J_v1s
 // value: 2 ----v1s ; 0 ---- no v1s
 static ssize_t nubia_charge_version_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
-    char pcb_ext[3][12]={"NX789J_V2A","NX789J_V1A","NX789J_V1B"};
+    char pcb_ext[3][12]={"V2A","V1A","V1B"};
 
     if(NULL == buf)
 		return 0;
@@ -328,7 +328,7 @@ static struct kobj_attribute hml_config_attr=
 	__ATTR(hml_version, 0664, hml_config_version_show, NULL);
 //add by zte to distinguish high medium low settings end 
 
-//开始进入第二部分-读取rf部分
+//驴陋脢录陆酶脠毛碌脷露镁虏驴路脰-露脕脠隆rf虏驴路脰
 const char* nubia_get_rf_band_by_gpio(const struct hw_rf_band_gpio_map_str *pts,
 		uint32_t tablesize)
 {
@@ -355,7 +355,7 @@ const char* nubia_get_rf_band_by_gpio(const struct hw_rf_band_gpio_map_str *pts,
 }
 EXPORT_SYMBOL_GPL(nubia_get_rf_band_by_gpio);
 
-//读取射频类型给上层使用
+//露脕脠隆脡盲脝碌脌脿脨脥赂酶脡脧虏茫脢鹿脫脙
 static ssize_t nubia_hw_rf_band_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
@@ -375,9 +375,9 @@ static ssize_t nubia_hw_rf_band_show(struct kobject *kobj,
 static struct kobj_attribute hw_rf_band_attr=
 	__ATTR(rf_version, 0664, nubia_hw_rf_band_show, NULL);
 
-//读取射频频段完成
+//露脕脠隆脡盲脝碌脝碌露脦脥锚鲁脡
 
-//开始读取第三大部分-软件相关的一些配置
+//驴陋脢录露脕脠隆碌脷脠媒麓贸虏驴路脰-脠铆录镁脧脿鹿脴碌脛脪禄脨漏脜盲脰脙
 #ifdef CONFIG_NUBIA_HW_CONFIG_BY_GPIO
 #else
 const struct hw_config_adc_map_st* nubia_get_config_table_item_by_adc(const struct hw_config_adc_map_st *pts,
@@ -403,7 +403,7 @@ const struct hw_config_adc_map_st* nubia_get_config_table_item_by_adc(const stru
 }
 #endif
 
-//调试值的读取和写入
+//碌梅脢脭脰碌碌脛露脕脠隆潞脥脨麓脠毛
 static ssize_t debug_value_store(struct kobject *kobj,
 	    struct kobj_attribute *attr, const char *buf, size_t count)
 {

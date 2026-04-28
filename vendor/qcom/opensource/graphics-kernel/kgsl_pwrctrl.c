@@ -83,9 +83,10 @@ static u32 _adjust_pwrlevel(struct kgsl_pwrctrl *pwr, u32 level, struct kgsl_pwr
 	/* Ensure that max pwrlevel is within pmqos max limit */
 	max_pwrlevel = max_t(u32, max_pwrlevel, READ_ONCE(pwr->pmqos_max_pwrlevel));
 
-	/* Ensure that min pwrlevel is within thermal limit */
-	min_pwrlevel = max_t(u32, min_pwrlevel, thermal_pwrlevel);
-
+/* Started by AICoder, pid:se513u7ceec9973146790845f062422aa9e37137 */
+	/* Ensure that min pwrlevel is within thermal limit and max limit */
+	min_pwrlevel = max_t(u32, min_pwrlevel, max_pwrlevel);
+/* Ended by AICoder, pid:se513u7ceec9973146790845f062422aa9e37137 */
 	switch (pwrc->type) {
 	case KGSL_CONSTRAINT_PWRLEVEL: {
 		switch (pwrc->sub_type) {

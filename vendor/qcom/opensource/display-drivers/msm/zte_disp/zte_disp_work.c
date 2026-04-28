@@ -10,7 +10,7 @@
 #include "zte_disp_feature.h"
 #include "zte_disp_work.h"
 #include "sde_encoder_phys.h"
-char *msg[10] = {
+char *msg[12] = {
 	/* hbm msg */
 	"HBM_STATUS=OFF",
 	"HBM_STATUS=ON",
@@ -23,6 +23,7 @@ char *msg[10] = {
 	"LCD_FPS=90",
 	"LCD_FPS=120",
 	"LCD_FPS=144",
+	"LCD_FPS=165",
 };
 
 int get_index(int mode) {
@@ -34,6 +35,8 @@ int get_index(int mode) {
 		id = 2;
 	} else if (mode == 144) {
 		id = 3;
+	} else if (mode == 165) {
+		id = 4;
 	}
 
 	return id + MSG_FPS;
@@ -254,7 +257,7 @@ void sde_irq_triger(void *sde_encoder_phys, unsigned int irq_type) {
     }
 
     if (c_conn->connector_type != DRM_MODE_CONNECTOR_DSI) {
-        pr_err("not in dsi mode\n");
+        //pr_err("not in dsi mode\n");
         return;
     }
 

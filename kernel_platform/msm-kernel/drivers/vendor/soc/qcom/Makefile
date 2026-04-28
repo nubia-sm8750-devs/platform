@@ -6,4 +6,4 @@ obj-y           += rchip/
 obj-y           += tiantong/
 obj-y           += zte_rpcom/
 obj-y           += ifas_inner/
-
+obj-y           += satel_hd/

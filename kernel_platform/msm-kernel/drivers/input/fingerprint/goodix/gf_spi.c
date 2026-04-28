@@ -64,7 +64,11 @@
 
 #define RESET_DELAY_TIME 5
 
+#ifdef ZTE_CONFIG_FINGERPRINT_EXTCMD
+#define WAKELOCK_HOLD_TIME 10000 /* in ms */
+#else
 #define WAKELOCK_HOLD_TIME 500 /* in ms */
+#endif
 
 #define GF_SPIDEV_NAME     "goodix,fingerprint"
 /*device name after register in character*/

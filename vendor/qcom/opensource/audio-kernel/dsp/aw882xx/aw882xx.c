@@ -747,7 +747,7 @@ static int aw882xx_dynamic_create_controls(struct aw882xx *aw882xx)
 	if (!kctl_name)
 		return -ENOMEM;
 
-	snprintf(kctl_name, AW_NAME_BUF_MAX, "aw_dev_%d_prof", aw882xx->index);
+	snprintf(kctl_name, AW_NAME_BUF_MAX, "aw_dev_%d_prof", aw882xx->aw_pa->channel);
 
 	aw882xx_dev_control[0].name = kctl_name;
 	aw882xx_dev_control[0].iface = SNDRV_CTL_ELEM_IFACE_MIXER;
@@ -759,7 +759,7 @@ static int aw882xx_dynamic_create_controls(struct aw882xx *aw882xx)
 	if (!kctl_name)
 		return -ENOMEM;
 
-	snprintf(kctl_name, AW_NAME_BUF_MAX, "aw_dev_%d_switch", aw882xx->index);
+	snprintf(kctl_name, AW_NAME_BUF_MAX, "aw_dev_%d_switch",  aw882xx->aw_pa->channel);
 
 	aw882xx_dev_control[1].name = kctl_name;
 	aw882xx_dev_control[1].iface = SNDRV_CTL_ELEM_IFACE_MIXER;
@@ -771,7 +771,7 @@ static int aw882xx_dynamic_create_controls(struct aw882xx *aw882xx)
 	if (!kctl_name)
 		return -ENOMEM;
 
-	snprintf(kctl_name, AW_NAME_BUF_MAX, "aw_dev_%d_monitor", aw882xx->index);
+	snprintf(kctl_name, AW_NAME_BUF_MAX, "aw_dev_%d_monitor",  aw882xx->aw_pa->channel);
 
 	aw882xx_dev_control[2].name = kctl_name;
 	aw882xx_dev_control[2].iface = SNDRV_CTL_ELEM_IFACE_MIXER;
@@ -783,7 +783,7 @@ static int aw882xx_dynamic_create_controls(struct aw882xx *aw882xx)
 	if (!kctl_name)
 		return -ENOMEM;
 
-	snprintf(kctl_name, AW_NAME_BUF_MAX, "aw_dev_%d_hal_mon_work", aw882xx->index);
+	snprintf(kctl_name, AW_NAME_BUF_MAX, "aw_dev_%d_hal_mon_work",  aw882xx->aw_pa->channel);
 
 	aw882xx_dev_control[3].name = kctl_name;
 	aw882xx_dev_control[3].iface = SNDRV_CTL_ELEM_IFACE_MIXER;

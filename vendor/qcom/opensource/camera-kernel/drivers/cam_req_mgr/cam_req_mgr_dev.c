@@ -198,7 +198,7 @@ static unsigned int cam_req_mgr_poll(struct file *f,
 
 	return rc;
 }
-
+extern void vi530x_resources_close(void);
 static int cam_req_mgr_close(struct file *filep)
 {
 	struct v4l2_subdev *sd;
@@ -209,7 +209,7 @@ static int cam_req_mgr_close(struct file *filep)
 	CAM_WARN(CAM_CRM,
 		"release invoked associated userspace process has died, open_cnt: %d",
 		g_dev.open_cnt);
-
+    vi530x_resources_close();
 	cam_req_mgr_rwsem_write_op(CAM_SUBDEV_LOCK);
 
 	mutex_lock(&g_dev.cam_lock);

@@ -2,6 +2,24 @@ load("//build/kernel/kleaf:kernel.bzl", "ddk_module")
 load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
 load("//msm-kernel:target_variants.bzl", "get_all_variants")
 load(":project_defconfig.bzl", "get_project_defconfig")
+load("//msm-kernel:sun.bzl", "get_zte_board_name")
+
+board_id = ["qvcork"]
+board_id_z9900s = ["qvhodur"]
+zte_camera_feature = ["CONFIG_FRONT_CAM_NOPULL"]
+zte_tof_feature = ["CONFIG_TOF_VDIG_SUPPLY"]
+
+def get_zte_camera_feature():
+    if get_zte_board_name() in board_id:
+        return zte_camera_feature
+    else:
+        return []
+
+def get_zte_tof_feature():
+    if get_zte_board_name() in board_id_z9900s:
+        return zte_tof_feature
+    else:
+        return []
 
 def _define_module(target, variant):
     tv = "{}_{}".format(target, variant)
@@ -219,9 +237,9 @@ def _define_module(target, variant):
                     "drivers/cam_sensor_module/zte_io/ois_dw9784.c",
                     "drivers/cam_sensor_module/zte_io/zte_camera_ois_util.c",
                     "drivers/cam_sensor_module/zte_io/zte_camera_sensor_util.c",
-                    "drivers/cam_sensor_module/cam_adj_aperture/cam_adj_aperture_dev.c",
-                    "drivers/cam_sensor_module/cam_adj_aperture/cam_adj_aperture_core.c",
-                    "drivers/cam_sensor_module/cam_adj_aperture/cam_adj_aperture_soc.c",
+                    "drivers/cam_sensor_module/cam_var_aperture/cam_var_aperture_dev.c",
+                    "drivers/cam_sensor_module/cam_var_aperture/cam_var_aperture_soc.c",
+                    "drivers/cam_sensor_module/cam_var_aperture/cam_var_aperture_core.c",
                     "vi530x/vi530x_api.c",
                     "vi530x/vi530x_firmware.c",
                     "vi530x/vi530x_module.c",
@@ -263,6 +281,7 @@ def _define_module(target, variant):
         kconfig = "Kconfig",
         defconfig = "{}_defconfig_generated".format(tv),
         kernel_build = "//msm-kernel:{}".format(tv),
+        local_defines = get_zte_camera_feature() + get_zte_tof_feature(),
     )
 
     copy_to_dist_dir(

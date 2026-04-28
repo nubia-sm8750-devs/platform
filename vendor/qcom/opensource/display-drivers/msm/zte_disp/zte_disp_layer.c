@@ -2,6 +2,7 @@
 #include "../dsi/dsi_display.h"
 #include "zte_disp_backlight.h"
 #include "zte_disp_work.h"
+#include "zte_disp_layer.h"
 
 int zte_spec_layer_report(void *sde_connector, void *sde_connector_state, uint64_t flag)
 {
@@ -40,40 +41,6 @@ int zte_spec_layer_report(void *sde_connector, void *sde_connector_state, uint64
 }
 
 /* Started by AICoder, pid:v09b4paf03v2353148ed0a65b0d2806ecba15a30 */
-// This function is responsible for reporting the dimming coefficient of a DSI panel.
-// It takes three parameters: a pointer to a sde_connector structure, a pointer to a sde_connector_state structure, and a uint64_t value representing the dimming coefficient.
-// The function returns an integer indicating whether the operation was successful or not.
-int zte_layer_dim_coeff_report(void *sde_connector, void *sde_connector_state, uint64_t coeff)
-{
-    struct sde_connector *c_conn = sde_connector;
-	struct sde_connector_state *c_state = sde_connector_state;
-    struct dsi_display *display;
-    uint64_t last_coeff = -1;
-
-    if (!c_conn || !c_state)
-       return -EINVAL;
-
-    if (c_conn->connector_type != DRM_MODE_CONNECTOR_DSI)
-       return 0;
-
-    if (!c_conn->display)
-       return 0;
-
-    display = c_conn->display;
-
-    if (!display->panel)
-        return 0;
-
-    if (last_coeff != coeff) {
-        last_coeff = coeff;
-        if (coeff > 0) {
-            /* dim off */
-            dsi_panel_dim_handle(display->panel, false);
-        }
-    }
-    return 0;
-}
-
 bool panel_layer_contains_exhdr(u64 flag)
 {
 	if (flag & ZTE_LAYER_EXTENDHDR)

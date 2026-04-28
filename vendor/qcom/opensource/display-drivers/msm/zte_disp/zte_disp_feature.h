@@ -10,3 +10,6 @@
 #include "../dsi/dsi_display.h"
 
 int zte_set_disp_parameter(struct dsi_panel *panel, u32 feature, u32 feature_mode, bool from_node);
+#ifdef CONFIG_DRM_ZTE_DISP_LTPO
+void zte_dsi_panel_update_ddic_fps(struct dsi_panel *panel, u32 max_fps, u32 min_fps);
+#endif

@@ -23,14 +23,24 @@
 #define COMPSIZE   64
 struct cam_adj_aperture_ctrl_t  *pa_ctrl = NULL;
 
+unsigned long long aperture_i2c_open_count = 0 ;
+
+module_param(aperture_i2c_open_count, ullong, 0644);
+
+unsigned long long aperture_adc_value = 0xFFF;
+int aperture_test_flag = 0;
+
+module_param(aperture_adc_value, ullong, 0644);
 
 typedef enum  ADJSTATE
 {
     ADJSTATEMAX = 1,//open max
     ADJSTATEMID,//open mid
     ADJSTATEMIN,//open min
-    ADJSTATECLOSE = 0x1000,//close
-    ADJSTATEOPEN = 0x1001,//open
+    ADJSTATEDEFAULT,// default
+    ADJSTATECLOSE,//close
+    ADJSTATESTREAMON,//enable
+    ADJSTATEOPEN,//open
 }ADJSTATE;
 
 
@@ -55,15 +65,63 @@ static int  find_compatible_for_platform_device(struct platform_device *pdev, ch
     return 0;
 }
 
+
+static ssize_t camera_adj_aperture_stream_off(void){
+    int ret = 0;
+
+    struct cam_sensor_i2c_reg_array adj_setting = {
+        .reg_addr = 0x00,
+        .reg_data = 0x00,
+        .delay = 0x00U,
+        .data_mask = 0x00U,
+    };
+
+    struct cam_sensor_i2c_reg_setting adj_write_setting = {
+    .size = 1,
+    .reg_setting = &adj_setting,
+    .addr_type = CAMERA_SENSOR_I2C_TYPE_WORD,
+    .data_type = CAMERA_SENSOR_I2C_TYPE_DWORD,
+    .delay = 0,
+    };
+    msleep(330);
+    ret = camera_io_dev_write_continuous(&pa_ctrl->io_master_info, &adj_write_setting, 0);
+
+    return  0;
+}
+
+static ssize_t camera_close_adj_fnum(void){
+    camera_adj_aperture_stream_off();
+    gpio_direction_output(153+512, 0);
+    msleep(2);
+    gpio_direction_output(54+512, 0);
+    msleep(2);
+
+
+    uint32_t gpio_avdd = 0;
+    of_property_read_u32(pa_ctrl->soc_info.dev->of_node, "gpio-avdd", &gpio_avdd);
+    gpio_direction_output(gpio_avdd+512, 0);
+    gpio_free(gpio_avdd+512);
+
+    camera_io_release(&pa_ctrl->io_master_info);
+
+    return  0;
+}
+
 static ssize_t camera_open_adj_fnum(void){
     int ret = 0;
 
+    pa_ctrl->io_master_info.qup_client->i2c_client->addr = 0x6c;
+
+    uint32_t gpio_avdd = 0;
+    of_property_read_u32(pa_ctrl->soc_info.dev->of_node, "gpio-avdd", &gpio_avdd);
+    gpio_request(gpio_avdd+512, "adj_aperture avdd gpio");
+    gpio_direction_output(gpio_avdd+512, 1);
+
+    msleep(2);
     gpio_direction_output(54+512, 1); //gpio+offset
     msleep(2);
-    gpio_direction_output(56+512, 1);
-    msleep(2);
     gpio_direction_output(153+512, 1);
-    msleep(200);
+    msleep(5);
     ret = camera_io_init(&pa_ctrl->io_master_info);
     if (ret < 0) {
         CAM_ERR(CAM_ACTUATOR, "aperture  cci init failed: rc: %d", ret);
@@ -72,18 +130,6 @@ static ssize_t camera_open_adj_fnum(void){
     return  0;
 }
 
-static ssize_t camera_close_adj_fnum(void){
-
-    msleep(200);
-    gpio_direction_output(54+512, 0);
-    msleep(2);
-    gpio_direction_output(56+512, 0);
-    msleep(2);
-    gpio_direction_output(153+512, 0);
-    camera_io_release(&pa_ctrl->io_master_info);
-
-    return  0;
-}
 
 static ssize_t camera_adj_aperture_stream_on(void){
     int ret = 0;
@@ -109,28 +155,6 @@ static ssize_t camera_adj_aperture_stream_on(void){
     return  ret;
 }
 
-static ssize_t camera_adj_aperture_stream_off(void){
-    int ret = 0;
-
-    struct cam_sensor_i2c_reg_array adj_setting = {
-        .reg_addr = 0x00,
-        .reg_data = 0x00,
-        .delay = 0x00U,
-        .data_mask = 0x00U,
-    };
-
-    struct cam_sensor_i2c_reg_setting adj_write_setting = {
-    .size = 1,
-    .reg_setting = &adj_setting,
-    .addr_type = CAMERA_SENSOR_I2C_TYPE_WORD,
-    .data_type = CAMERA_SENSOR_I2C_TYPE_DWORD,
-    .delay = 0,
-    };
-    msleep(200);
-    ret = camera_io_dev_write_continuous(&pa_ctrl->io_master_info, &adj_write_setting, 0);
-
-    return  0;
-}
 
 static ssize_t camera_adj_aperture_switch_state(unsigned dload){
     int ret = 0;
@@ -150,23 +174,60 @@ static ssize_t camera_adj_aperture_switch_state(unsigned dload){
     .delay = 0,
     };
 
-    switch(dload)
+    if((dload == ADJSTATEOPEN) && (!aperture_test_flag))
+    {
+		camera_open_adj_fnum();
+	    aperture_test_flag = 1;
+
+		return 0;
+	}
+
+    if(!aperture_test_flag)
+	{
+		CAM_ERR(CAM_ACTUATOR, "aperture first open  dev ");
+		return 0;
+    }
+
+    switch(dload )
     {
         case ADJSTATEMAX:
+        camera_adj_aperture_stream_on();
         adj_setting.reg_addr = 0x10; //open max
         adj_setting.reg_data = 0xFFF;
         ret = camera_io_dev_write_continuous(&pa_ctrl->io_master_info, &adj_write_setting, 0);
+        camera_adj_aperture_stream_off();
         break;
         case ADJSTATEMID:
+        camera_adj_aperture_stream_on();
         adj_setting.reg_addr = 0x10; //open mid
         adj_setting.reg_data = 0x800;
         ret = camera_io_dev_write_continuous(&pa_ctrl->io_master_info, &adj_write_setting, 0);
+        camera_adj_aperture_stream_off();
         break;
         break;
         case  ADJSTATEMIN:
+        camera_adj_aperture_stream_on();
         adj_setting.reg_addr = 0x10; //open min
         adj_setting.reg_data = 0x00;
         ret = camera_io_dev_write_continuous(&pa_ctrl->io_master_info, &adj_write_setting, 0);
+        camera_adj_aperture_stream_off();
+        break;
+        case  ADJSTATEDEFAULT:
+        camera_adj_aperture_stream_on();
+        adj_setting.reg_addr = 0x10; //default
+        adj_setting.reg_data = aperture_adc_value;
+        ret = camera_io_dev_write_continuous(&pa_ctrl->io_master_info, &adj_write_setting, 0);
+        camera_adj_aperture_stream_off();
+        break;
+        case  ADJSTATEOPEN:
+        break;
+        case  ADJSTATECLOSE:
+        camera_close_adj_fnum();
+	    aperture_test_flag = 0;
+        break;
+        case  ADJSTATESTREAMON:
+        camera_adj_aperture_stream_on();
+        camera_adj_aperture_stream_off();
         break;
     }
 
@@ -177,15 +238,8 @@ static int  camera_state = ADJSTATEMAX;
 static ssize_t camera_switch_adj_fnum_state( unsigned dload){
     int ret = 0;
 
-    pa_ctrl->io_master_info.qup_client->i2c_client->addr = 0x6c;
-    camera_open_adj_fnum();
-
     CAM_DBG(CAM_ACTUATOR, "aperture dload%d", dload);
-    camera_adj_aperture_stream_on();
     ret = camera_adj_aperture_switch_state(dload);
-    camera_adj_aperture_stream_off();
-
-    camera_close_adj_fnum();
 
     return ret;
 }
@@ -474,17 +528,16 @@ static int cam_actuator_init_subdev(struct cam_adj_aperture_ctrl_t *a_ctrl)
 int  aperture_open_count = 0;
 struct mutex adj_aperture_mutex;
 
+
 static int adj_aperture_open(struct inode *inode, struct file *file)
 {
-    struct cam_adj_aperture_ctrl_t *a_ctrl = container_of(file->private_data,
-    struct cam_adj_aperture_ctrl_t, miscdev);
-
     mutex_lock(&adj_aperture_mutex);
     if(aperture_open_count == 0)
     {
-        camera_open_zte_adj_aperture(a_ctrl);
+        ;//camera_open_zte_adj_aperture(a_ctrl);
     }
     aperture_open_count++;
+    aperture_i2c_open_count = aperture_open_count;
     mutex_unlock(&adj_aperture_mutex);
 
     return 0;
@@ -497,11 +550,11 @@ static int adj_aperture_release(struct inode *inode, struct file *file)
 
     mutex_lock(&adj_aperture_mutex);
     aperture_open_count--;
+    aperture_i2c_open_count = aperture_open_count;
     if(aperture_open_count == 0)
     {
         CAM_INFO(CAM_ACTUATOR,"release");
-        cam_zte_adj_aperture_thread_resources_close(a_ctrl);
-        camera_close_zte_adj_aperture(a_ctrl);
+        aperture_thread_resources_close(a_ctrl);
     }
     mutex_unlock(&adj_aperture_mutex);
 

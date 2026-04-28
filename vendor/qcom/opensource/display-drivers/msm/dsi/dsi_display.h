@@ -22,6 +22,9 @@
 #include "dsi_ctrl.h"
 #include "dsi_phy.h"
 #include "dsi_panel.h"
+#ifdef CONFIG_ZTE_LCD_ZLOG
+#include <vendor/comdef/zlog_common_base.h>
+#endif
 
 #define MAX_DSI_CTRLS_PER_DISPLAY             2
 #define DSI_CLIENT_NAME_SIZE		20
@@ -983,8 +986,8 @@ int dsi_display_get_clk_rate(void *display, u32 idx, u32 clk_type, u64 *clk_rate
  */
 void dsi_display_set_idle_pc_state(void *display, bool idle_pc);
 
-#ifdef CONFIG_DRM_ZTE_DISP
 struct device *get_disp_dev(void);
+#if defined(CONFIG_DRM_ZTE_DISP) || defined(CONFIG_DRM_ZTE_DISP_QVCORK)
 int dsi_panel_read_cmd_set(struct dsi_panel *panel, struct dsi_read_config *read_config);
 #endif
 #endif /* _DSI_DISPLAY_H_ */

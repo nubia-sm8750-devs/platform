@@ -61,6 +61,12 @@ static struct CameraOisParams g_CameraOisParams[] =
         "ois_dw9784_ov64b40_lotus",
         0x301,
         0x0702
+    },
+    {
+        "ov64b40_qvburdock",
+        "ois_dw9784_ov64b40_qvburdock",
+        0x501,
+        0x0106
     }
 };
 

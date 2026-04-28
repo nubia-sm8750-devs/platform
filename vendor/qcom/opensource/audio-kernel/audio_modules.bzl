@@ -77,6 +77,15 @@ audio_modules.register(
     srcs = ["audio_pdr.c"]
 )
 audio_modules.register(
+    name = "tfa98xx_dlkm",
+    path = DSP_PATH,
+    srcs = ["tfa9874/tfa_container.c",
+           "tfa9874/tfa_dsp.c",
+           "tfa9874/tfa_init.c",
+           "tfa9874/tfa98xx.c"
+    ],
+)
+audio_modules.register(
     name = "aw882xx_dlkm",
     path = DSP_PATH,
     srcs = ["aw882xx/aw882xx.c",

@@ -959,6 +959,7 @@ struct msm_display_wd_jitter_config {
  * @avr_step_fps: AVR step fps rate
  * @wd_jitter:         Info for WD jitter.
  * @vpadding:        panel stacking height
+ * @te_pulse_width_ns: pulse width of the TE in microseconds
  */
 struct msm_mode_info {
 	uint32_t frame_rate;
@@ -987,6 +988,7 @@ struct msm_mode_info {
 	u32 avr_step_fps;
 	struct msm_display_wd_jitter_config wd_jitter;
 	u32 vpadding;
+	u32 te_pulse_width_us;
 };
 
 /**
@@ -1047,6 +1049,7 @@ struct msm_resource_caps_info {
  *			for dsi display)
  * @ctl_op_sync:        Indicates dual display panels are operating in sync mode
  * @is_master:          Flag indicating the Master display which drives the displays in sync mode
+ * @disable_cesta_hw_sleep: Disable cesta hardware sleep & panic/wakeup_en for the display
  */
 struct msm_display_info {
 	int intf_type;
@@ -1088,6 +1091,7 @@ struct msm_display_info {
 	uint32_t lm_count;
 	bool ctl_op_sync;
 	bool is_master;
+	bool disable_cesta_hw_sleep;
 };
 
 #define MSM_MAX_ROI	4

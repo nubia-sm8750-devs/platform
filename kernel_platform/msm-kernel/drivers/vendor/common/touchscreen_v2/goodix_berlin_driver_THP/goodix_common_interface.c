@@ -14,6 +14,10 @@ extern int zte_follow_hand_level(int enable);
 extern int zte_sensibility_level(int enable);
 extern int zte_play_game(int enable);
 extern int zte_tp_set_report_rate(int enable);
+extern int goodix_thp_reset_basline(int enable);
+extern int recovery_game_mode_after_reset(void);
+extern int is_fake_sleep_mode;
+extern int is_screen_off_awake_mode;
 
 /* Started by AICoder, pid:68be2y16ebh9bbc1475a09e490bb992b7538b399 */
 static atomic_t ato_ver = ATOMIC_INIT(0);
@@ -448,11 +452,16 @@ static int tpd_set_play_game(struct ztp_device *cdev, int enable)
 
 	if (atomic_read(&core_data->suspended)) {
 		/* we can not play game in black screen */
+		core_data->ztec.is_play_game = enable;
 		ts_err("%s: error, change set in suspend!", __func__);
 	} else {
-		core_data->ztec.is_play_game = enable;
-		ret = zte_play_game(enable);
-		ts_info("enter_play_game %d\n", enable);
+		if (core_data->ztec.is_play_game == enable) {
+			ts_info("play no need reset");
+		} else {
+			core_data->ztec.is_play_game = enable;
+			ret = zte_play_game(enable);
+			ts_info("enter_play_game %d\n", enable);
+		}
 	}
 
 	return 0;
@@ -490,11 +499,63 @@ static int goodix_ghost_check_reset(struct ztp_device *cdev)
 {
 	struct goodix_thp_core *core_data = (struct goodix_thp_core *)cdev->private;
 
+	goodix_thp_reset_basline(1);
 	goodix_thp_reset(core_data->ts_dev, 100);
+	recovery_game_mode_after_reset();
 	ts_info("goodix_ghost_reset success");
 
 	return 0;
 }
+
+/* Started by AICoder, pid:l4c7ar0b63b817114008098200c0d94f04b012b5 */
+static int tpd_set_fake_sleep(struct ztp_device *cdev, int enable)
+{
+	struct goodix_thp_core *core_data = (struct goodix_thp_core *)cdev->private;
+
+	core_data->ztec.is_fake_sleep_in_suspend = enable;
+	if (atomic_read(&core_data->suspended)) {
+		ts_err("%s: error, change set in suspend!", __func__);
+	} else {
+		core_data->ztec.is_fake_sleep = enable;
+		is_fake_sleep_mode = enable;
+	}
+
+	return 0;
+}
+
+static int tpd_get_fake_sleep(struct ztp_device *cdev)
+{
+	struct goodix_thp_core *core_data = (struct goodix_thp_core *)cdev->private;
+
+	cdev->fake_sleep_enable = core_data->ztec.is_fake_sleep;
+
+	return 0;
+}
+
+static int tpd_set_screen_off_awake(struct ztp_device *cdev, int enable)
+{
+	struct goodix_thp_core *core_data = (struct goodix_thp_core *)cdev->private;
+
+	core_data->ztec.is_screen_off_awake_in_suspend = enable;
+	if (atomic_read(&core_data->suspended)) {
+		ts_err("%s: error, change set in suspend!", __func__);
+	} else {
+		core_data->ztec.is_screen_off_awake = enable;
+		is_screen_off_awake_mode = enable;
+	}
+
+	return 0;
+}
+
+static int tpd_get_screen_off_awake(struct ztp_device *cdev)
+{
+	struct goodix_thp_core *core_data = (struct goodix_thp_core *)cdev->private;
+
+	cdev->screen_off_awake_enable = core_data->ztec.is_screen_off_awake;
+
+	return 0;
+}
+/* Ended by AICoder, pid:m50c732e5ca41de140980bea302821260ce1eda3 */
 
 void goodix_thp_tpd_register_fw_class(struct goodix_thp_core *core_data)
 {
@@ -561,6 +622,14 @@ void goodix_thp_tpd_register_fw_class(struct goodix_thp_core *core_data)
 	tpd_cdev->tp_palm_mode_write = tpd_set_palm_mode;
 
 	tpd_cdev->ghost_check_reset = goodix_ghost_check_reset;
+
+/* Started by AICoder, pid:ub7fda610dg0aec14c040ade008ceb1258710e12 */
+	tpd_cdev->set_fake_sleep = tpd_set_fake_sleep;
+	tpd_cdev->get_fake_sleep = tpd_get_fake_sleep;
+
+	tpd_cdev->set_screen_off_awake = tpd_set_screen_off_awake;
+	tpd_cdev->get_screen_off_awake = tpd_get_screen_off_awake;
+/* Ended by AICoder, pid:ub7fda610dg0aec14c040ade008ceb1258710e12 */
 
 	ts_info("%s: end", __func__);
 }

@@ -28,23 +28,28 @@ struct rpcom_platform_data {
 	struct regulator *uim_power;
 	u32 vol_1p8_uv;
 	u32 vol_3p0_uv;
-	int tt_poweron;
+	struct gpio_desc *tt_poweron;
+	struct gpio_desc *tt_reset;
+	struct gpio_desc *tt_download;
+	struct gpio_desc *uim0_qc_on;
+	struct gpio_desc *uim0_sw;
+	struct gpio_desc *uim1_sw;
+	struct gpio_desc *uim1_qc_on;
+	struct gpio_desc *tt_rf_sw;
+#ifdef CONFIG_ZTE_RPCOM_2UIMPLUG
+	struct gpio_desc *uim0_hotplug;
+	struct gpio_desc *uim1_hotplug;
+#else
+	struct gpio_desc *uim_hotplug;
+#endif
+	struct gpio_desc *tt_lna_3v3_en;
+	struct gpio_desc *tt_trx_1p8_en;
 	int tt_power_state;
-	int tt_reset;
-	int tt_download;
 	int tt_download_state;
-	int uim0_qc_on;
-	int uim0_sw;
 	int uim0_sw_state;
-	int uim1_sw;
-	int uim1_qc_on;
 	int uim1_sw_state;
-	int tt_rf_sw;
 	int tt_rf_sw_state;
 	int uim_power_level_state;
-	int uim_hotplug;
-	int tt_lna_3v3_en;
-	int tt_trx_1p8_en;
 };
 
 static struct rpcom_platform_data *rpcom_pdata;
@@ -58,26 +63,24 @@ void rpcom_power_on(int on_or_off)
 
 	if (on) {
 		/* poweron for rpcom chip*/
-		gpio_direction_output(rpcom_pdata->tt_reset, 0);
+		gpiod_direction_output(rpcom_pdata->tt_reset, 0);
 		msleep(20);
-		gpio_direction_output(rpcom_pdata->tt_poweron, 1);
-		gpio_set_value_cansleep(rpcom_pdata->tt_poweron, 1);
+		gpiod_direction_output(rpcom_pdata->tt_poweron, 1);
 		msleep(220);
-		gpio_direction_output(rpcom_pdata->tt_reset, 1);
-		gpio_set_value_cansleep(rpcom_pdata->tt_reset, 1);
+		gpiod_direction_output(rpcom_pdata->tt_reset, 1);
 		msleep(20);
 		pr_info("%s: power on or off ? on\n", __func__);
 	} else {
 		/* directly poweroff is not recommended*/
 		/* rpcom suggest shutdown by AT command*/
 		/* poweroff for rpcom chip*/
-		gpio_direction_output(rpcom_pdata->tt_reset, 0);
-		gpio_direction_output(rpcom_pdata->tt_poweron, 0);
+		gpiod_direction_output(rpcom_pdata->tt_reset, 0);
+		gpiod_direction_output(rpcom_pdata->tt_poweron, 0);
 		pr_info("%s: power on or off ? off\n", __func__);
 	}
-	rpcom_pdata->tt_power_state = gpio_get_value(rpcom_pdata->tt_poweron);
+	rpcom_pdata->tt_power_state = gpiod_get_value(rpcom_pdata->tt_poweron);
 	pr_info("%s: status, tt_poweron = %d, tt_reset = %d\n",
-		__func__, gpio_get_value(rpcom_pdata->tt_poweron), gpio_get_value(rpcom_pdata->tt_reset));
+		__func__, gpiod_get_value(rpcom_pdata->tt_poweron), gpiod_get_value(rpcom_pdata->tt_reset));
 }
 
 void rpcom_rf_sw(int on_or_off) {
@@ -86,25 +89,23 @@ void rpcom_rf_sw(int on_or_off) {
 	if (on) {
 		/* poweron for rpcom rf*/
 		/* rf switch to rpcom tiantong*/
-		gpio_direction_output(rpcom_pdata->tt_rf_sw, 1);
-		gpio_set_value_cansleep(rpcom_pdata->tt_rf_sw, 1);
-		gpio_direction_output(rpcom_pdata->tt_lna_3v3_en, 1);
-		gpio_set_value_cansleep(rpcom_pdata->tt_lna_3v3_en, 1);
-		gpio_direction_output(rpcom_pdata->tt_trx_1p8_en, 1);
-		gpio_set_value_cansleep(rpcom_pdata->tt_trx_1p8_en, 1);
+		gpiod_direction_output(rpcom_pdata->tt_rf_sw, 1);
+		gpiod_direction_output(rpcom_pdata->tt_lna_3v3_en, 1);
+#ifndef CONFIG_ZTE_RPCOM_RF_LDO
+		gpiod_direction_output(rpcom_pdata->tt_trx_1p8_en, 1);
+#endif
 		pr_info("%s: tt_rf_sw to qcom or rpcom? rpcom\n", __func__);
 	} else {
 		/* poweroff for rpcom rf*/
 		/* switch the power supply to qcom modem*/
-		gpio_direction_output(rpcom_pdata->tt_rf_sw, 0);
-		gpio_set_value_cansleep(rpcom_pdata->tt_rf_sw, 0);
-		gpio_direction_output(rpcom_pdata->tt_lna_3v3_en, 0);
-		gpio_set_value_cansleep(rpcom_pdata->tt_lna_3v3_en, 0);
-		gpio_direction_output(rpcom_pdata->tt_trx_1p8_en, 0);
-		gpio_set_value_cansleep(rpcom_pdata->tt_trx_1p8_en, 0);
+		gpiod_direction_output(rpcom_pdata->tt_rf_sw, 0);
+		gpiod_direction_output(rpcom_pdata->tt_lna_3v3_en, 0);
+#ifndef CONFIG_ZTE_RPCOM_RF_LDO
+		gpiod_direction_output(rpcom_pdata->tt_trx_1p8_en, 0);
+#endif
 		pr_info("%s: tt_rf_sw to qcom or rpcom? qcom\n", __func__);
 	}
-	rpcom_pdata->tt_rf_sw_state = gpio_get_value(rpcom_pdata->tt_rf_sw);
+	rpcom_pdata->tt_rf_sw_state = gpiod_get_value(rpcom_pdata->tt_rf_sw);
 	pr_info("%s: status, tt_rf_sw_state = %d\n", __func__, rpcom_pdata->tt_rf_sw_state);
 }
 
@@ -112,14 +113,13 @@ void rpcom_fw_download(int on_or_off) {
 	int on = on_or_off != 0 ? 1 : 0;
 
 	if (on) {
-		gpio_direction_output(rpcom_pdata->tt_download, 1);
-		gpio_set_value_cansleep(rpcom_pdata->tt_download, 1);
+		gpiod_direction_output(rpcom_pdata->tt_download, 1);
 		pr_info("%s: enter rpcom_fw_download mode...", __func__);
 	} else {
-		gpio_direction_output(rpcom_pdata->tt_download, 0);
+		gpiod_direction_output(rpcom_pdata->tt_download, 0);
 		pr_info("%s: exit rpcom_fw_download mode...", __func__);
 	}
-	rpcom_pdata->tt_download_state = gpio_get_value(rpcom_pdata->tt_download);
+	rpcom_pdata->tt_download_state = gpiod_get_value(rpcom_pdata->tt_download);
 	pr_info("%s: status, tt_download = %d\n",
 		__func__, rpcom_pdata->tt_download_state);
 }
@@ -132,16 +132,14 @@ void rpcom_uim0_poweron(int on_or_off)
 	if (on) {
 		/* uim0 switch to rpcom */
 		pr_info("uim0 state is on!\n");
-		gpio_direction_output(rpcom_pdata->uim0_qc_on, 0);
-		gpio_direction_output(rpcom_pdata->uim0_sw, 1);
-		gpio_set_value_cansleep(rpcom_pdata->uim0_sw, 1);
+		gpiod_direction_output(rpcom_pdata->uim0_qc_on, 0);
+		gpiod_direction_output(rpcom_pdata->uim0_sw, 1);
 		rpcom_pdata->uim0_sw_state = 1;
 		pr_info("%s: uim0 switch to rpcom, uim0_sw_state = %d\n", __func__, rpcom_pdata->uim0_sw_state);
 	} else {
 		/* uim0 switch to qcom modem */
-		gpio_direction_output(rpcom_pdata->uim0_qc_on, 1);
-		gpio_set_value_cansleep(rpcom_pdata->uim0_qc_on, 1);
-		gpio_direction_output(rpcom_pdata->uim0_sw, 0);
+		gpiod_direction_output(rpcom_pdata->uim0_qc_on, 1);
+		gpiod_direction_output(rpcom_pdata->uim0_sw, 0);
 		rpcom_pdata->uim0_sw_state = 0;
 		pr_info("%s: uim0 switch to qcom modem, uim0_sw_state = %d\n", __func__, rpcom_pdata->uim0_sw_state);
 	}
@@ -155,16 +153,14 @@ void rpcom_uim1_poweron(int on_or_off)
 	if (on) {
 		/* uim1 switch to rpcom */
 		pr_info("uim1 state is on!\n");
-		gpio_direction_output(rpcom_pdata->uim1_qc_on, 0);
-		gpio_direction_output(rpcom_pdata->uim1_sw, 1);
-		gpio_set_value_cansleep(rpcom_pdata->uim1_sw, 1);
+		gpiod_direction_output(rpcom_pdata->uim1_qc_on, 0);
+		gpiod_direction_output(rpcom_pdata->uim1_sw, 1);
 		rpcom_pdata->uim1_sw_state = 1;
 		pr_info("%s: uim1 switch to rpcom, uim1_sw_state = %d\n", __func__, rpcom_pdata->uim1_sw_state);
 	} else {
 		/* uim1 switch to qcom modem */
-		gpio_direction_output(rpcom_pdata->uim1_qc_on, 1);
-		gpio_set_value_cansleep(rpcom_pdata->uim1_qc_on, 1);
-		gpio_direction_output(rpcom_pdata->uim1_sw, 0);
+		gpiod_direction_output(rpcom_pdata->uim1_qc_on, 1);
+		gpiod_direction_output(rpcom_pdata->uim1_sw, 0);
 		rpcom_pdata->uim1_sw_state = 0;
 		pr_info("%s: uim1 switch to qcom modem, uim1_sw_state = %d\n", __func__, rpcom_pdata->uim1_sw_state);
 	}
@@ -284,13 +280,13 @@ static ssize_t reset_store(struct device *dev, struct device_attribute *attr, co
 	sscanf(buff, "%u", &reset);
 	if (reset) {
 		pr_info("rpcom reset ...!\n");
-		gpio_set_value_cansleep(rpcom_pdata->tt_reset, 0);
+		gpiod_set_value_cansleep(rpcom_pdata->tt_reset, 0);
 		msleep(220);
-		gpio_set_value_cansleep(rpcom_pdata->tt_reset, 1);
+		gpiod_set_value_cansleep(rpcom_pdata->tt_reset, 1);
 	} else {
 		pr_info("nothing to be done!\n");
 	}
-	pr_info("%s: status, tt_reset=%d\n", __func__, gpio_get_value(rpcom_pdata->tt_reset));
+	pr_info("%s: status, tt_reset=%d\n", __func__, gpiod_get_value(rpcom_pdata->tt_reset));
 	return strnlen(buff, size);
 }
 
@@ -375,21 +371,40 @@ static ssize_t uim_power_level_show(struct device *dev, struct device_attribute 
 }
 
 
+#ifdef CONFIG_ZTE_RPCOM_2UIMPLUG
 static ssize_t uim_hotplug_store(struct device *dev, struct device_attribute *attr, const char *buff, size_t size)
 {
 	unsigned int uim_hotplug_sts = 0;
 	sscanf(buff, "%u", &uim_hotplug_sts);
 	if (uim_hotplug_sts) {
 		pr_info("rpcom uim_hotplug, prepare to switch to qcom modem...!\n");
-		gpio_direction_output(rpcom_pdata->uim_hotplug, 1);
-		gpio_set_value_cansleep(rpcom_pdata->uim_hotplug, 1);
+		gpiod_set_value_cansleep(rpcom_pdata->uim0_hotplug, 1);
+		gpiod_set_value_cansleep(rpcom_pdata->uim1_hotplug, 1);
 		msleep(80);
-		gpio_set_value_cansleep(rpcom_pdata->uim_hotplug, 0);
+		gpiod_set_value_cansleep(rpcom_pdata->uim0_hotplug, 0);
+		gpiod_set_value_cansleep(rpcom_pdata->uim1_hotplug, 0);
 	} else {
 		pr_info("nothing to be done!\n");
 	}
 	return strnlen(buff, size);
 }
+#else
+static ssize_t uim_hotplug_store(struct device *dev, struct device_attribute *attr, const char *buff, size_t size)
+{
+	unsigned int uim_hotplug_sts = 0;
+	sscanf(buff, "%u", &uim_hotplug_sts);
+	if (uim_hotplug_sts) {
+		pr_info("rpcom uim_hotplug, prepare to switch to qcom modem...!\n");
+		gpiod_direction_output(rpcom_pdata->uim_hotplug, 1);
+		gpiod_set_value_cansleep(rpcom_pdata->uim_hotplug, 1);
+		msleep(80);
+		gpiod_set_value_cansleep(rpcom_pdata->uim_hotplug, 0);
+	} else {
+		pr_info("nothing to be done!\n");
+	}
+	return strnlen(buff, size);
+}
+#endif
 
 
 static int rpcom_populate_dt_pinfo(struct platform_device *pdev)
@@ -407,126 +422,45 @@ static int rpcom_populate_dt_pinfo(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	rpcom_pdata->tt_poweron =
-		of_get_named_gpio(pdev->dev.of_node,
-			"tt_poweron", 0);
-	pr_info("%s: tt_poweron = %d\n", __func__, rpcom_pdata->tt_poweron);
-	if (gpio_is_valid(rpcom_pdata->tt_poweron)) {
-		if (devm_gpio_request(&pdev->dev, rpcom_pdata->tt_poweron, "tt_poweron")) {
-			pr_err("failed to request tt_poweron gpio!\n");
-			return -EINVAL;
-		}
-	}
+/* Started by AICoder, pid:r2c5fqb1fa341b51430f08e590fd192e0eb71517 */
+/**
+ * Helper macro to get GPIO descriptors and handle errors.
+ */
 
-	rpcom_pdata->tt_reset =
-		of_get_named_gpio(pdev->dev.of_node,
-			"tt_reset", 0);
-	pr_info("%s: tt_reset = %d\n", __func__, rpcom_pdata->tt_reset);
-	if (gpio_is_valid(rpcom_pdata->tt_reset)) {
-		if (devm_gpio_request(&pdev->dev, rpcom_pdata->tt_reset, "tt_reset")) {
-			pr_err("failed to request tt_reset gpio!\n");
-			return -EINVAL;
-		}
-	}
+#define GET_GPIOD(name, var, state) \
+	do { \
+		rpcom_pdata->var = devm_gpiod_get(&pdev->dev, name, state); \
+		rc = PTR_ERR_OR_ZERO(rpcom_pdata->var); \
+		if (rc) { \
+			dev_err(&pdev->dev, "failed to get gpiod %s, error = %d!\n", name, rc); \
+		} \
+	} while (0)
 
-	rpcom_pdata->tt_download =
-		of_get_named_gpio(pdev->dev.of_node,
-			"tt_download", 0);
-	pr_info("%s: tt_download = %d\n", __func__, rpcom_pdata->tt_download);
-	if (gpio_is_valid(rpcom_pdata->tt_download)) {
-		if (devm_gpio_request(&pdev->dev, rpcom_pdata->tt_download, "tt_download")) {
-			pr_err("failed to request tt_download gpio!\n");
-			return -EINVAL;
-		}
-	}
+// Initialize GPIO pins with their respective states
+	GET_GPIOD("tt_poweron", tt_poweron, GPIOD_OUT_LOW);
+	GET_GPIOD("tt_reset", tt_reset, GPIOD_OUT_LOW);
+	GET_GPIOD("tt_download", tt_download, GPIOD_OUT_LOW);
+	GET_GPIOD("uim0_qc_on", uim0_qc_on, GPIOD_OUT_HIGH);
+	GET_GPIOD("uim1_qc_on", uim1_qc_on, GPIOD_OUT_HIGH);
+	GET_GPIOD("uim0_sw", uim0_sw, GPIOD_OUT_LOW);
+	GET_GPIOD("uim1_sw", uim1_sw, GPIOD_OUT_LOW);
+	GET_GPIOD("tt_rf_sw", tt_rf_sw, GPIOD_OUT_LOW);
+	GET_GPIOD("tt_lna_3v3_en", tt_lna_3v3_en, GPIOD_OUT_LOW);
+#ifdef CONFIG_ZTE_RPCOM_RF_LDO
+	GET_GPIOD("tt_trx_1p8_en", tt_trx_1p8_en, GPIOD_OUT_HIGH);
+#else
+	GET_GPIOD("tt_trx_1p8_en", tt_trx_1p8_en, GPIOD_OUT_LOW);
+#endif
 
-	rpcom_pdata->uim0_qc_on =
-		of_get_named_gpio(pdev->dev.of_node,
-			"uim0_qc_on", 0);
-	pr_info("%s: uim0_qc_on = %d\n", __func__, rpcom_pdata->uim0_qc_on);
-	if (gpio_is_valid(rpcom_pdata->uim0_qc_on)) {
-		if (devm_gpio_request(&pdev->dev, rpcom_pdata->uim0_qc_on, "uim0_qc_on")) {
-			pr_err("failed to request uim0_qc_on gpio!\n");
-			return -EINVAL;
-		}
-	}
+#ifdef CONFIG_ZTE_RPCOM_2UIMPLUG
+	GET_GPIOD("uim0_hotplug", uim0_hotplug, GPIOD_OUT_LOW);
+	GET_GPIOD("uim1_hotplug", uim1_hotplug, GPIOD_OUT_LOW);
+#else
+	GET_GPIOD("uim_hotplug", uim_hotplug, GPIOD_OUT_LOW);
+#endif
 
-	rpcom_pdata->uim1_qc_on =
-		of_get_named_gpio(pdev->dev.of_node,
-			"uim1_qc_on", 0);
-	pr_info("%s: uim1_qc_on = %d\n", __func__, rpcom_pdata->uim1_qc_on);
-	if (gpio_is_valid(rpcom_pdata->uim1_qc_on)) {
-		if (devm_gpio_request(&pdev->dev, rpcom_pdata->uim1_qc_on, "uim1_qc_on")) {
-			pr_err("failed to request uim1_qc_on gpio!\n");
-			return -EINVAL;
-		}
-	}
-
-	rpcom_pdata->uim0_sw =
-		of_get_named_gpio(pdev->dev.of_node,
-			"uim0_sw", 0);
-	pr_info("%s: uim0_sw = %d\n", __func__, rpcom_pdata->uim0_sw);
-	if (gpio_is_valid(rpcom_pdata->uim0_sw)) {
-		if (devm_gpio_request(&pdev->dev, rpcom_pdata->uim0_sw, "uim0_sw")) {
-			pr_err("failed to request uim0_sw gpio!\n");
-			return -EINVAL;
-		}
-	}
-
-	rpcom_pdata->uim1_sw =
-		of_get_named_gpio(pdev->dev.of_node,
-			"uim1_sw", 0);
-	pr_info("%s: uim1_sw = %d\n", __func__, rpcom_pdata->uim1_sw);
-	if (gpio_is_valid(rpcom_pdata->uim1_sw)) {
-		if (devm_gpio_request(&pdev->dev, rpcom_pdata->uim1_sw, "uim1_sw")) {
-			pr_err("failed to request uim1_sw gpio!\n");
-			return -EINVAL;
-		}
-	}
-
-	rpcom_pdata->tt_rf_sw =
-		of_get_named_gpio(pdev->dev.of_node,
-			"tt_rf_sw", 0);
-	pr_info("%s: tt_rf_sw = %d\n", __func__, rpcom_pdata->tt_rf_sw);
-	if (gpio_is_valid(rpcom_pdata->tt_rf_sw)) {
-		if (devm_gpio_request(&pdev->dev, rpcom_pdata->tt_rf_sw, "tt_rf_sw")) {
-			pr_err("failed to request tt_rf_sw gpio!\n");
-			return -EINVAL;
-		}
-	}
-
-	rpcom_pdata->uim_hotplug =
-		of_get_named_gpio(pdev->dev.of_node,
-			"uim_hotplug", 0);
-	pr_info("%s: uim_hotplug = %d\n", __func__, rpcom_pdata->uim_hotplug);
-	if (gpio_is_valid(rpcom_pdata->uim_hotplug)) {
-		if (devm_gpio_request(&pdev->dev, rpcom_pdata->uim_hotplug, "uim_hotplug")) {
-			pr_err("failed to request uim_hotplug gpio!\n");
-			return -EINVAL;
-		}
-	}
-
-	rpcom_pdata->tt_lna_3v3_en =
-		of_get_named_gpio(pdev->dev.of_node,
-			"tt_lna_3v3_en", 0);
-	pr_info("%s: tt_lna_3v3_en = %d\n", __func__, rpcom_pdata->tt_lna_3v3_en);
-	if (gpio_is_valid(rpcom_pdata->tt_lna_3v3_en)) {
-		if (devm_gpio_request(&pdev->dev, rpcom_pdata->tt_lna_3v3_en, "tt_lna_3v3_en")) {
-			pr_err("failed to request tt_lna_3v3_en gpio!\n");
-			return -EINVAL;
-		}
-	}
-
-	rpcom_pdata->tt_trx_1p8_en =
-		of_get_named_gpio(pdev->dev.of_node,
-			"tt_trx_1p8_en", 0);
-	pr_info("%s: tt_trx_1p8_en = %d\n", __func__, rpcom_pdata->tt_trx_1p8_en);
-	if (gpio_is_valid(rpcom_pdata->tt_trx_1p8_en)) {
-		if (devm_gpio_request(&pdev->dev, rpcom_pdata->tt_trx_1p8_en, "tt_trx_1p8_en")) {
-			pr_err("failed to request tt_trx_1p8_en gpio!\n");
-			return -EINVAL;
-		}
-	}
+#undef GET_GPIOD
+/* Ended by AICoder, pid:r2c5fqb1fa341b51430f08e590fd192e0eb71517 */
 
 	rc = of_property_read_u32(pdev->dev.of_node, "linux,3p0-uv", &tempval);
 	if (rc) {
@@ -592,16 +526,7 @@ static int zte_rpcom_probe(struct platform_device *pdev)
 		rpcom_power_on(1);
 		/* switch to rpcom rf */
 		rpcom_rf_sw(1);
-	} else {
-		pr_info("%s rpcom tiantong default state = %d\n", __func__, power_on_during_boot);
-		/* switch to qcom rf, default state */
-		rpcom_rf_sw(0);
-		/* poweroff for rpcom chip */
-		rpcom_power_on(0);
 	}
-	
-	rpcom_uim0_poweron(0);
-	rpcom_uim1_poweron(0);
 
 	pr_info("%s end\n", __func__);
 	return 0;

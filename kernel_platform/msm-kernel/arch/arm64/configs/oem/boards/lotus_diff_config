@@ -1,3 +1,5 @@
+
+#### Keep blank line for compiling ####
 ## configs for PQ84A01 project
 #CONFIG_*=m
 

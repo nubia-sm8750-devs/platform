@@ -10,6 +10,7 @@
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/soc/qcom/sysmon_subsystem_stats.h>
+#include <linux/proc_fs.h>
 
 #define SYSMON_SMEM_ID					634
 #define SLEEPSTATS_SMEM_ID_ADSP			606
@@ -1392,6 +1393,27 @@ static int master_cdsp_stats_show(struct seq_file *s, void *d)
 
 DEFINE_SHOW_ATTRIBUTE(master_cdsp_stats);
 
+
+static struct proc_dir_entry *proc_entry_cdsp_stats;
+static struct proc_dir_entry *proc_entry_adsp_stats;
+
+
+static const struct proc_ops master_cdsp_zte_stats_fops = {
+    .proc_open    = master_cdsp_stats_open,
+    .proc_read    = seq_read,
+    .proc_lseek  = seq_lseek,
+    .proc_release = single_release,
+};
+
+
+static const struct proc_ops master_adsp_zte_stats_fops = {
+    .proc_open    = master_adsp_stats_open,
+    .proc_read    = seq_read,
+    .proc_lseek  = seq_lseek,
+    .proc_release = single_release,
+};
+
+
 static int  __init sysmon_stats_init(void)
 {
 
@@ -1415,6 +1437,21 @@ static int  __init sysmon_stats_init(void)
 	if (!g_sysmon_stats.debugfs_master_cdsp_stats)
 		pr_err("Failed to create debugfs file for CDSP master stats\n");
 
+
+    proc_entry_cdsp_stats = proc_create("master_cdsp_stats", 0, NULL, &master_cdsp_zte_stats_fops);
+    if (!proc_entry_cdsp_stats) {
+        pr_err("Failed to create /proc/master_cdsp_stats\n");
+        return -ENOMEM;
+    }
+    pr_info("Created /proc/master_cdsp_stats\n");
+
+    proc_entry_adsp_stats = proc_create("master_adsp_stats", 0, NULL, &master_adsp_zte_stats_fops);
+    if (!proc_entry_adsp_stats) {
+        pr_err("Failed to create /proc/master_adsp_stats\n");
+        return -ENOMEM;
+    }
+    pr_info("Created /proc/master_adsp_stats\n");
+/* Ended by AICoder, pid:oad0eke7a0a171914f29096c515a406c44f2eaca */
 debugfs_bail:
 		return 0;
 }
@@ -1422,6 +1459,10 @@ debugfs_bail:
 static void __exit sysmon_stats_exit(void)
 {
 	debugfs_remove_recursive(g_sysmon_stats.debugfs_dir);
+    remove_proc_entry("master_cdsp_stats", NULL);
+    pr_info("Removed /proc/master_cdsp_stats\n");
+    remove_proc_entry("master_adsp_stats", NULL);
+    pr_info("Removed /proc/master_adsp_stats\n");
 }
 
 module_init(sysmon_stats_init);

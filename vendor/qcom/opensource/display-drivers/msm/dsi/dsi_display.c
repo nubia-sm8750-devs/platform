@@ -28,8 +28,9 @@
 #include "../zte_disp/zte_disp_work.h"
 #include "../zte_disp/zte_disp_backlight.h"
 #include "../zte_disp/zte_disp_layer.h"
-struct device *dsi_uevent_device = NULL;
+#include "../zte_disp/zte_disp_i2c.h"
 #endif
+struct device *dsi_uevent_device = NULL;
 
 #define to_dsi_display(x) container_of(x, struct dsi_display, host)
 #define INT_BASE_10 10
@@ -244,6 +245,10 @@ int dsi_display_set_backlight(struct drm_connector *connector,
 	u32 bl_scale, bl_scale_sv;
 	u64 bl_temp;
 	int rc = 0;
+#ifdef CONFIG_DRM_ZTE_DISP_LTM
+	static u32 last_bl_temp = 0;
+	static u64 last_scale_bl_temp = 0;
+#endif
 
 	if (dsi_display == NULL || dsi_display->panel == NULL)
 		return -EINVAL;
@@ -273,6 +278,27 @@ int dsi_display_set_backlight(struct drm_connector *connector,
 		bl_temp = panel->bl_config.dimming_bl_lut->mapped_bl[bl_temp];
 	}
 
+/* Started by AICoder, pid:ha02299b611c9cb1412e0ba2b036e8193e482e0f */
+#ifdef CONFIG_DRM_ZTE_DISP_LTM
+    // Conditional block to handle backlight scaling based on LTM (Local Tone Mapping) settings
+    if (bl_scale_sv > MAX_SV_BL_SCALE_LEVEL && bl_temp > 0 && last_scale_bl_temp > 0) {
+        //DSI_INFO("msm_lcd last_bl_temp=%u to %llu, ltm_sensor=%d, bl_scale_sv=%u, bl_lvl=%u to %u\n", last_bl_temp,
+        //	last_scale_bl_temp, panel->disp_feature[ZTE_LCD_LTM_SENSOR_BL].mode, bl_scale_sv, bl_lvl, (u32)bl_temp);
+        // SENDOR_BL_UP=1, SENDOR_BL_DOWN=2, SENDOR_BL_EXIT=0
+        if (panel->disp_feature[ZTE_LCD_LTM_SENSOR_BL].mode == 1 && bl_temp <= last_scale_bl_temp && \
+            last_bl_temp <= bl_lvl) {
+            //bl_temp = last_scale_bl_temp;
+            goto error;
+        } else if (panel->disp_feature[ZTE_LCD_LTM_SENSOR_BL].mode == 2 && bl_temp >= last_scale_bl_temp && \
+            last_bl_temp >= bl_lvl) {
+            //bl_temp = last_scale_bl_temp;
+            goto error;
+        }
+    }
+    // End of conditional block for LTM-based backlight scaling
+#endif
+/* Ended by AICoder, pid:ha02299b611c9cb1412e0ba2b036e8193e482e0f */
+
 	if (bl_temp > panel->bl_config.bl_max_level)
 		bl_temp = panel->bl_config.bl_max_level;
 
@@ -286,6 +312,10 @@ int dsi_display_set_backlight(struct drm_connector *connector,
 	if (rc)
 		DSI_ERR("unable to set backlight\n");
 
+#ifdef CONFIG_DRM_ZTE_DISP_LTM
+	last_scale_bl_temp = bl_temp;
+	last_bl_temp = bl_lvl;
+#endif
 error:
 	mutex_unlock(&panel->panel_lock);
 	return rc;
@@ -606,6 +636,16 @@ static bool dsi_display_validate_reg_read(struct dsi_panel *panel)
 	lenp = config->status_valid_params ?: config->status_cmds_rlen;
 	count = config->status_cmd.count;
 
+	if(!strncmp(panel->name, "HX8874_9p06_cmd_mode_panel_with_DSC", strlen("HX8874_9p06_cmd_mode_panel_with_DSC"))) {
+		if (0x4 == (config->return_buf[0] & 0x4)) {
+			DRM_ERROR("msm_lcd mismatch: 0x%x\n", config->return_buf[0]);
+			return false;
+		} else {
+			//DSI_INFO("msm_lcd read esd ok: 0x%x\n", config->return_buf[0]);
+			return true;
+		}
+	}
+
 	for (i = 0; i < count; i++)
 		len += lenp[i];
 
@@ -613,8 +653,8 @@ static bool dsi_display_validate_reg_read(struct dsi_panel *panel)
 		for (i = 0; i < len; ++i) {
 			if (config->return_buf[i] !=
 				config->status_value[group + i]) {
-				DRM_ERROR("mismatch: 0x%x\n",
-						config->return_buf[i]);
+				DRM_ERROR("msm_lcd mismatch: 0x%x oldvalue=%x\n",
+						config->return_buf[i], config->status_value[group + i]);
 				break;
 			}
 		}
@@ -848,7 +888,11 @@ static int dsi_display_validate_status(struct dsi_display_ctrl *ctrl,
 		struct dsi_display *display)
 {
 	int rc = 0;
-
+#if defined(CONFIG_DRM_ZTE_DISP) || defined(CONFIG_DRM_ZTE_DISP_QVCORK)
+	if(!strncmp(display->panel->name, "HX8874_9p06_cmd_mode_panel_with_DSC", strlen("HX8874_9p06_cmd_mode_panel_with_DSC"))) {
+		zte_dsi_panel_tx_cmd_set(display->panel, DSI_CMD_SET_ESD_WRITE);
+	}
+#endif
 	rc = dsi_display_read_status(ctrl, display);
 	if (rc <= 0) {
 		goto exit;
@@ -868,7 +912,7 @@ exit:
 	return rc;
 }
 
-#ifdef CONFIG_DRM_ZTE_DISP
+#if defined(CONFIG_DRM_ZTE_DISP) || defined(CONFIG_DRM_ZTE_DISP_QVCORK)
 int dsi_panel_read_cmd_set(struct dsi_panel *panel,
 				struct dsi_read_config *read_config)
 {
@@ -1086,6 +1130,19 @@ int dsi_display_check_status(struct drm_connector *connector, void *display,
 
 	panel = dsi_display->panel;
 
+/* Started by AICoder, pid:i41de2614fo429714ead0a82d0ee20116036e1ae */
+//This helps in debugging issues related to power mode mismatches and ESD read operations.
+#ifdef CONFIG_DRM_ZTE_DISP
+if (panel->disp_feature[ZTE_LCD_STATE_CTRL].mode != SDE_MODE_DPMS_ON) {
+    if (panel->esd_config.status_mode == ESD_MODE_REG_READ) {
+        DSI_ERR("msm_lcd mismatch force esd_read true power_mode=%d\n", panel->disp_feature[ZTE_LCD_STATE_CTRL].mode);
+        return rc;
+    }
+}
+#endif
+//The code above ensures proper handling of display power modes and ESD configurations.
+/* Ended by AICoder, pid:i41de2614fo429714ead0a82d0ee20116036e1ae */
+
 	dsi_panel_acquire_panel_lock(panel);
 
 	if (!panel->panel_initialized) {
@@ -1155,6 +1212,17 @@ release_panel_lock:
 	dsi_panel_release_panel_lock(panel);
 	SDE_EVT32(SDE_EVTLOG_FUNC_EXIT, rc);
 
+/* Started by AICoder, pid:31ed716a9a6411714e690828400b61051a45190d */
+#ifdef CONFIG_ZTE_LCD_ZLOG
+	if (rc <=0) {
+		if (panel->zlog_lcd_client) {
+			zlog_client_record(panel->zlog_lcd_client, "%s: Warning: TE or esd mismatch failed!\n",__func__);
+			zlog_client_notify(panel->zlog_lcd_client, ZLOG_LCD_ESD_CHECK_ERROR_NO);
+			DSI_INFO("msm_lcd TE or esd mismatch failed!\n");
+		}
+	}
+#endif
+/* Ended by AICoder, pid:31ed716a9a6411714e690828400b61051a45190d */
 	return rc;
 }
 
@@ -1467,6 +1535,9 @@ static void _dsi_display_setup_misr(struct dsi_display *display)
 	}
 }
 
+#if defined(CONFIG_DRM_ZTE_DISP_QVCORK)
+extern int zte_set_disp_parameter(struct dsi_panel *panel, u32 feature, u32 feature_mode, bool from_node);
+#endif
 int dsi_display_set_power(struct drm_connector *connector,
 		int power_mode, void *disp)
 {
@@ -1498,10 +1569,17 @@ int dsi_display_set_power(struct drm_connector *connector,
 			if (dsi_display_set_lp2_load(display, false))
 				DSI_WARN("Failed to remove load of lp2 state\n");
 		}
-
+        #if defined(CONFIG_DRM_ZTE_DISP_QVCORK)
+		if ((display->panel->power_mode == SDE_MODE_DPMS_LP1) ||
+			(display->panel->power_mode == SDE_MODE_DPMS_LP2)) {
+			rc = dsi_panel_set_nolp(display->panel);
+			zte_set_disp_parameter(display->panel, ZTE_LCD_SET_BL, display->panel->cur_bl, false);
+		}
+		#else
 		if ((display->panel->power_mode == SDE_MODE_DPMS_LP1) ||
 			(display->panel->power_mode == SDE_MODE_DPMS_LP2))
 			rc = dsi_panel_set_nolp(display->panel);
+		#endif
 		break;
 	case SDE_MODE_DPMS_OFF:
 	default:
@@ -1514,6 +1592,11 @@ int dsi_display_set_power(struct drm_connector *connector,
 			rc ? "failed" : "successful");
 	if (!rc)
 		display->panel->power_mode = power_mode;
+	#if defined(CONFIG_DRM_ZTE_DISP_QVCORK)
+	if (power_mode == SDE_MODE_DPMS_LP1) {
+		zte_set_disp_parameter(display->panel, ZTE_LCD_AOD_BL, display->panel->disp_feature[ZTE_LCD_AOD_BL].mode, false);
+	}
+	#endif
 	return rc;
 }
 
@@ -4289,12 +4372,11 @@ static int dsi_display_get_phandle_count(struct dsi_display *display,
 				propname);
 }
 
-#ifdef CONFIG_DRM_ZTE_DISP
 struct device *get_disp_dev(void)
 {
 	return dsi_uevent_device;
 }
-#endif
+
 static int dsi_display_parse_dt(struct dsi_display *display)
 {
 	int i, rc = 0;
@@ -4305,9 +4387,7 @@ static int dsi_display_parse_dt(struct dsi_display *display)
 	if (!strcmp(display->display_type, "primary")) {
 		dsi_ctrl_name = "qcom,dsi-ctrl-num";
 		dsi_phy_name = "qcom,dsi-phy-num";
-		#ifdef CONFIG_DRM_ZTE_DISP
 		dsi_uevent_device = &display->pdev->dev;
-		#endif
 	} else {
 		dsi_ctrl_name = "qcom,dsi-sec-ctrl-num";
 		dsi_phy_name = "qcom,dsi-sec-phy-num";
@@ -6190,6 +6270,13 @@ static int dsi_display_init(struct dsi_display *display)
 		DSI_ERR("component add failed, rc=%d\n", rc);
 
 	DSI_DEBUG("component add success: %s\n", display->name);
+#ifdef CONFIG_DRM_ZTE_DISP
+	if (display->panel) {
+		DSI_INFO("msm_lcd panel i2c_power_enabled=%d\n", display->panel->i2c_power_enabled);
+		if (display->panel->i2c_power_enabled)
+			disp_i2c_driver_init(); //add for PQ84P01 lcdPOWER to FPWM
+	}
+#endif
 end:
 	return rc;
 }
@@ -7067,6 +7154,7 @@ int dsi_display_get_info(struct drm_connector *connector,
 	info->poms_align_vsync = display->panel->poms_align_vsync;
 	info->is_te_using_watchdog_timer = is_sim_panel(display);
 	info->event_notification_disabled = display->panel->event_notification_disabled;
+	info->disable_cesta_hw_sleep = display->panel->disable_cesta_hw_sleep;
 
 	switch (display->panel->panel_mode) {
 	case DSI_OP_VIDEO_MODE:
@@ -8207,7 +8295,7 @@ int dsi_display_set_mode(struct dsi_display *display,
 		goto error;
 	}
 
-	#ifdef CONFIG_DRM_ZTE_DISP
+	#if defined(CONFIG_DRM_ZTE_DISP) || defined(CONFIG_DRM_ZTE_DISP_QVCORK) 
 	display->panel->disp_feature[ZTE_LCD_FPS_CTRL].mode = timing.refresh_rate;
 	#endif
 

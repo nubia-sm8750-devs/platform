@@ -972,6 +972,11 @@ static void uaudio_connect(struct snd_usb_audio *chip)
 
 	uadev[chip->card->number].chip = chip;
 	uadev[chip->card->number].sb = sb;
+
+	//+linx fix sometimes hang headset
+	uaudio_info("WA for hang headset!");
+	uadev[chip->card->number].chip->quirk_flags |= QUIRK_FLAG_CTL_MSG_DELAY_1M;
+	//-linx fix sometimes hang headset
 }
 
 static void uaudio_disconnect(struct snd_usb_audio *chip)

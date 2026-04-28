@@ -208,6 +208,12 @@ static int32_t cam_flash_driver_cmd(struct cam_flash_ctrl *fctrl,
 		}
 		break;
 	}
+/* Started by AICoder, pid:6d6b8q12ecw9bfe143e70af5b0c94105e605ad81 */
+	case CAM_FLUSH_REQ:{
+		CAM_DBG(CAM_FLASH, "Flush received");
+		break;
+	}
+/* Ended by AICoder, pid:6d6b8q12ecw9bfe143e70af5b0c94105e605ad81 */
 	default:
 		CAM_ERR(CAM_FLASH, "Invalid Opcode: %d", cmd->op_code);
 		rc = -EINVAL;

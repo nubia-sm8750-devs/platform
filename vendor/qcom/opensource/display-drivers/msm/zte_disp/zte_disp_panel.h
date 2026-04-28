@@ -24,18 +24,39 @@
 #include <linux/printk.h>
 #include "zte_disp_feature.h"
 
-char *node_name[ZTE_LCD_MAX_CTRL] = {
-	"driver/lcd_hbm",
-	"driver/lcd_color_gamut",
-	"driver/lcd_fps",
-	"driver/lcd_acl",
-    "driver/lcd_aod_bl",
-    "driver/lcd_state",
-	"driver/lcd_bl_limit",
-    "skip",
-	"skip",
-	"skip",
+char *node_name[2][ZTE_LCD_MAX_CTRL] = {
+	{
+		"driver/lcd_hbm",
+		"driver/lcd_color_gamut",
+		"driver/lcd_fps",
+		"driver/lcd_acl",
+		"driver/lcd_aod_bl",
+		"driver/lcd_state",
+		"driver/lcd_bl_limit",
+		"skip",
+		"skip",
+		"skip",
+		"driver/lcd_ltm_sensor_bl",
+		"driver/debug0_min_fps",
+		"driver/lcd_local_hbm"
+	},
+	{
+		"driver/sec_lcd_hbm",
+		"driver/sec_lcd_color_gamut",
+		"driver/sec_lcd_fps",
+		"driver/sec_lcd_acl",
+		"driver/sec_lcd_aod_bl",
+		"driver/sec_lcd_state",
+		"driver/sec_lcd_bl_limit",
+		"skip",
+		"skip",
+		"skip",
+		"driver/sec_lcd_ltm_sensor_bl",
+		"driver/debug1_min_fps",
+		"driver/sec_lcd_local_hbm"
+	}
 };
+
 
 char *feature_name[ZTE_LCD_MAX_CTRL] = {
 	"lcd_hbm",
@@ -48,6 +69,9 @@ char *feature_name[ZTE_LCD_MAX_CTRL] = {
     "lcd_dim",
 	"lcd_bl",
 	"sync_bl",
+	"lcd_ltm_sensor_bl",
+	"min_fps",
+	"lcd_local_hbm",
 };
 
 #define LCD_PROC_FILE_DEFINE(name, nodeid) \
@@ -63,7 +87,7 @@ static ssize_t name##_proc_write(struct file *file, \
 		kfree(tmp); \
 		return -EFAULT; \
 	} \
-    if (nodeid == ZTE_LCD_BL_LIMIT) { \
+    if (nodeid == ZTE_LCD_BL_LIMIT || nodeid == ZTE_LCD_MIN_FPS) { \
 		sscanf(tmp, "%d", &mode); \
 	} else { \
 		mode = *tmp - '0'; \
@@ -100,10 +124,8 @@ static const struct proc_ops name##_proc_fops = { \
 static void name##_init(void *panel) \
 { \
     struct dsi_panel *p = (struct dsi_panel *)panel;\
-	if (!strcmp(p->type, "primary")) {\
-        pr_info("MSM_LCD create node %s\n", node_name[nodeid]);\
-        proc_create_data(node_name[nodeid], 0664, NULL, & name##_proc_fops, panel); \
-	}\
+	pr_info("MSM_LCD %s create node %s\n", p->type, node_name[!strcmp(p->type, "primary") ? 0 : 1][nodeid]);\
+    proc_create_data(node_name[!strcmp(p->type, "primary") ? 0 : 1][nodeid], 0664, NULL, & name##_proc_fops, panel); \
 	return; \
 }
 

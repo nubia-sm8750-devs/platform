@@ -282,6 +282,26 @@ void tpd_zlog_record_notify(zlog_error_no error_no)
 		zlog_client_notify(cdev->zlog_client,  ZLOG_TP_GHOST_ERROR_NO);
 		break;
 #endif
+	case TP_SERVICE_ERROR_NO:
+		if ((tpd_zlog_check(error_no) < 0) || (after_reset_time < 200))
+			break;
+		cdev->zlog_item.timer[error_no] = jiffies;
+		TPD_ZLOG("tpd hal service is crash,count:%lu. %s\n",
+			cdev->zlog_item.count[error_no], cdev->ztp_zlog_buffer);
+		zlog_client_record(cdev->zlog_client, "tpd tp hal service is crash,count:%d.\n %s\n",
+			cdev->zlog_item.count[error_no], cdev->ztp_zlog_buffer);
+		zlog_client_notify(cdev->zlog_client,  ZLOG_TP_SERVICE_ERROR_NO);
+		break;
+	case TP_OVERLOW_ERROR_NO:
+		if ((tpd_zlog_check(error_no) < 0) || (after_reset_time < 200))
+			break;
+		cdev->zlog_item.timer[error_no] = jiffies;
+		TPD_ZLOG("tpd save buffer is full,count:%lu. %s\n",
+			cdev->zlog_item.count[error_no], cdev->ztp_zlog_buffer);
+		zlog_client_record(cdev->zlog_client, "tpd tp save buffer is full,count:%d.\n %s\n",
+			cdev->zlog_item.count[error_no], cdev->ztp_zlog_buffer);
+		zlog_client_notify(cdev->zlog_client,  ZLOG_TP_OVERLOW_ERROR_NO);
+		break;
 	default:
 		break;
 	}
@@ -455,10 +475,10 @@ static ssize_t tp_module_info_read(struct file *file,
 		return 0;
 	}
 	if (cdev->get_tpinfo) {
-	cdev->get_tpinfo(cdev);
+		cdev->get_tpinfo(cdev);
 	}
 
-#ifdef CONFIG_TOUCHSCREEN_GOODIX_BRL_THP
+#if defined (CONFIG_TOUCHSCREEN_GOODIX_BRL_THP) || defined (CONFIG_TOUCHSCREEN_GOODIX_BRL_FOLD_THP)
 	len += snprintf(buffer_tpd + len, sizeof(buffer_tpd) - len, "%s\n",
 			cdev->ic_tpinfo.tp_name);
 #else
@@ -1182,6 +1202,52 @@ static ssize_t set_stability_level(struct file *file,
 	return len;
 }
 
+/* Started by AICoder, pid:9d7c30bd33t9bf214a1b0824102b8b4fba234c93 */
+static ssize_t tp_game_partition_read(struct file *file,
+                char __user *buffer, size_t count, loff_t *offset)
+{
+    ssize_t len = 0;
+    uint8_t data_buf[1024] = {0};
+    struct ztp_device *cdev = tpd_cdev;
+
+    if (*offset != 0) {
+        return 0;
+    }
+
+    pr_notice("tpd: %s:game_partition:val %s.\n", __func__, cdev->game_partition);
+    len = snprintf(data_buf, sizeof(data_buf), "%s\n", cdev->game_partition);
+    return simple_read_from_buffer(buffer, count, offset, data_buf, len);
+}
+
+static ssize_t tp_game_partition_write(struct file *file, 
+                const char __user *buffer, size_t len, loff_t *off)
+{
+    char data_buf[1024];
+    struct ztp_device *cdev = tpd_cdev;
+    ssize_t ret = 0;
+
+    pr_notice("tpd: %s:%lu, %zu.\n", __func__, sizeof(data_buf), len);
+    if (len > sizeof(data_buf)) {
+        pr_notice("tpd: %s:Input data too large.\n", __func__);
+        return -EINVAL;
+    }
+
+    memset(data_buf, 0, sizeof(data_buf));
+
+    if (copy_from_user(data_buf, buffer, len)) {
+        pr_notice("tpd: %s:Failed to copy data from user space.\n", __func__);
+        return -EINVAL;
+    }
+
+    cdev->set_game_partition(cdev, data_buf);
+
+    ret = snprintf(cdev->game_partition, sizeof(data_buf), "%s\n", data_buf);
+    pr_notice("tpd: %s:Received data: %s.\n", __func__, cdev->game_partition);
+
+    return len;
+}
+/* Ended by AICoder, pid:9d7c30bd33t9bf214a1b0824102b8b4fba234c93 */
+
 static ssize_t get_finger_lock_flag(struct file *file,
 					 char __user *buffer, size_t count, loff_t *offset)
 {
@@ -1421,7 +1487,7 @@ static ssize_t tp_sensibility_level_write(struct file *file,
 		return -EINVAL;
 
 	cdev->sensibility_level = input;
-	pr_notice("%s:ensibility level:val %d.\n", __func__, cdev->sensibility_level);
+	pr_notice("%s:sensibility level:val %d.\n", __func__, cdev->sensibility_level);
 	if (cdev->set_sensibility) {
 		cdev->set_sensibility(cdev, input);
 	}
@@ -1631,6 +1697,47 @@ static ssize_t set_fake_sleep(struct file *file,
 	return len;
 }
 
+/* Started by AICoder, pid:sb7e054ea3kb6051425e097720b8395837b2d080 */
+static ssize_t get_screen_off_awake(struct file *file,
+					 char __user *buffer, size_t count, loff_t *offset)
+{
+	ssize_t len = 0;
+	uint8_t data_buf[10] = {0};
+	struct ztp_device *cdev = tpd_cdev;
+
+	if (*offset != 0) {
+		return 0;
+	}
+	if (cdev->get_screen_off_awake) {
+		cdev->get_screen_off_awake(cdev);
+	}
+	pr_notice("tpd: %s val:%d.\n", __func__, cdev->screen_off_awake_enable);
+	len = snprintf(data_buf, sizeof(data_buf), "%u\n", cdev->screen_off_awake_enable);
+	return simple_read_from_buffer(buffer, count, offset, data_buf, len);
+}
+
+static ssize_t set_screen_off_awake(struct file *file,
+				const char __user *buffer, size_t len, loff_t *off)
+{
+	int ret = 0;
+	unsigned int input = 0;
+	struct ztp_device *cdev = tpd_cdev;
+
+	ret = kstrtouint_from_user(buffer, len, 10, &input);
+	if (ret)
+		return -EINVAL;
+
+	input = input > 0 ? 1 : 0;
+	pr_notice("tpd: %s val = %d\n", __func__, input);
+
+	if (cdev->set_screen_off_awake) {
+		cdev->set_screen_off_awake(cdev, input);
+	}
+
+	return len;
+}
+/* Ended by AICoder, pid:sb7e054ea3kb6051425e097720b8395837b2d080 */
+
 #ifdef TOUCH_DOWN_UP_ZLOG
 static ssize_t ghost_debug_read(struct file *file,
 					 char __user *buffer, size_t count, loff_t *offset)
@@ -1659,7 +1766,7 @@ static ssize_t ghost_debug_read(struct file *file,
 
 	len += snprintf(data_buf + len, PAGE_SIZE - len, "#######################################\n\n");
 	len += snprintf(data_buf + len, PAGE_SIZE - len, "single_time,multi_time,single_count,multi_count,start_time,ignore_id,ignore_edge_area,ignore_corner_x,ignore_corner_y \n");
-	len += snprintf(data_buf + len, PAGE_SIZE - len, "echo 25,20,5,8,35,9,30,40,50 > ghost_debug \n\n");
+	len += snprintf(data_buf + len, PAGE_SIZE - len, "echo 25,20,5,8,35,9,5121,1281,1281 > ghost_debug \n\n");
 	len += snprintf(data_buf + len, PAGE_SIZE - len,  "#######################################\n\n");
 	len += snprintf(data_buf + len, PAGE_SIZE,
 		"ghost_check_single_time is %d\n", cdev->ghost_check_single_time);
@@ -1718,9 +1825,9 @@ static ssize_t ghost_debug_write(struct file *file,
 	cdev->ghost_check_multi_count = data[3];
 	cdev->ghost_check_start_time = data[4];
 	cdev->ghost_check_ignore_id = data[5];
-	cdev->ghost_check_ignore_edge_area =  data[6];
-	cdev->ghost_check_ignore_corner_x =  data[7];
-	cdev->ghost_check_ignore_corner_y =  data[8];
+	cdev->ghost_check_ignore_edge_area = data[6];
+	cdev->ghost_check_ignore_corner_x = data[7];
+	cdev->ghost_check_ignore_corner_y = data[8];
 out:
 	return len;
 }
@@ -1957,6 +2064,11 @@ static const struct proc_ops proc_ops_stability_level = {
 	.proc_write = set_stability_level,
 };
 
+static const struct proc_ops proc_ops_game_partition = {
+	.proc_read = tp_game_partition_read,
+	.proc_write = tp_game_partition_write,
+};
+
 static const struct proc_ops proc_ops_sensibility_level = {
 	.proc_read = tp_sensibility_level_read,
 	.proc_write = tp_sensibility_level_write,
@@ -1990,6 +2102,11 @@ static const struct proc_ops proc_ops_fold_state = {
 static const struct proc_ops proc_ops_fake_sleep = {
 	.proc_read = get_fake_sleep,
 	.proc_write = set_fake_sleep,
+};
+
+static const struct proc_ops proc_ops_screen_off_awake = {
+	.proc_read = get_screen_off_awake,
+	.proc_write = set_screen_off_awake,
 };
 
 static const struct proc_ops proc_ops_BBAT_test = {
@@ -2087,6 +2204,9 @@ static void create_tpd_proc_entry(void)
 	tpd_proc_entry = proc_create(PROC_TOUCH_SENSIBILITY, 0664, tpd_proc_dir, &proc_ops_sensibility_level);
 	if (tpd_proc_entry == NULL)
 		pr_err("proc_create sensilibity failed!\n");
+	tpd_proc_entry = proc_create(PROC_TOUCH_GAME_PARTITION, 0664, tpd_proc_dir, &proc_ops_game_partition);
+	if (tpd_proc_entry == NULL)
+		pr_err("proc_create game_partition failed!\n");
 	tpd_proc_entry = proc_create(PROC_TOUCH_PEN_ONLY, 0664, tpd_proc_dir, &proc_ops_pen_only);
 	if (tpd_proc_entry == NULL)
 		pr_err("proc_create pen only failed!\n");
@@ -2105,6 +2225,9 @@ static void create_tpd_proc_entry(void)
 	tpd_proc_entry = proc_create(PROC_TOUCH_FAKE_SLEEP, 0664,  tpd_proc_dir, &proc_ops_fake_sleep);
 	if (tpd_proc_entry == NULL)
 		pr_err("proc_create touch_fake_sleep failed!\n");
+	tpd_proc_entry = proc_create(PROC_TOUCH_SCREEN_OFF_AWAKE, 0664,  tpd_proc_dir, &proc_ops_screen_off_awake);
+	if (tpd_proc_entry == NULL)
+		pr_err("proc_create touch_screen_off_awake failed!\n");
 #ifdef CONFIG_VENDOR_ZTE_DEV_MONITOR_SYSTEM
 	tpd_proc_entry = proc_create(PROC_ZLOG_DEBUG, 0664, tpd_proc_dir, &proc_ops_zlog_debug);
 	if (tpd_proc_entry == NULL)
@@ -2147,12 +2270,14 @@ void tpd_proc_deinit(void)
 	remove_proc_entry(PROC_TOUCH_TP_REPORT_RATE, tpd_proc_dir);
 	remove_proc_entry(PROC_TOUCH_FOLLOW_HAND_LEVEL, tpd_proc_dir);
 	remove_proc_entry(PROC_TOUCH_SENSIBILITY, tpd_proc_dir);
+	remove_proc_entry(PROC_TOUCH_GAME_PARTITION, tpd_proc_dir);
 	remove_proc_entry(PROC_TOUCH_PEN_ONLY, tpd_proc_dir);
 	remove_proc_entry(PROC_TOUCH_FINGER_LOCK_FLAG, tpd_proc_dir);
 	remove_proc_entry(PROC_TOUCH_TP_SELF_TEST, tpd_proc_dir);
 	remove_proc_entry(PROC_TOUCH_TP_PALM_MODE, tpd_proc_dir);
 	remove_proc_entry(PROC_TOUCH_TP_FOLD_STATE, tpd_proc_dir);
 	remove_proc_entry(PROC_TOUCH_FAKE_SLEEP, tpd_proc_dir);
+	remove_proc_entry(PROC_TOUCH_SCREEN_OFF_AWAKE, tpd_proc_dir);
 	remove_proc_entry(PROC_BBAT_TEST, tpd_proc_dir);
 #ifdef TOUCH_DOWN_UP_ZLOG
 	remove_proc_entry(PROC_TOUCH_GHOST_DEBUG, tpd_proc_dir);
@@ -2416,7 +2541,7 @@ static int ztp_parse_dt(struct device_node *node, struct ztp_device *cdev)
 		if (!ret) {
 			cdev->ghost_check_ignore_edge_area = value;
 		} else {
-			cdev->ghost_check_ignore_edge_area = 641;
+			cdev->ghost_check_ignore_edge_area = 5121;
 		}
 		ret = of_property_read_u32(node, "zte,ghost_check_ignore_corner_x", &value);
 		if (!ret) {
@@ -2437,7 +2562,7 @@ static int ztp_parse_dt(struct device_node *node, struct ztp_device *cdev)
 		cdev->ghost_check_multi_count = 8;
 		cdev->ghost_check_start_time = 35;
 		cdev->ghost_check_ignore_id = -1;
-		cdev->ghost_check_ignore_edge_area = 641;//NX789J 16 resolution
+		cdev->ghost_check_ignore_edge_area = 5121;//NX789J 16 resolution
 		cdev->ghost_check_ignore_corner_x = 1281;
 		cdev->ghost_check_ignore_corner_y = 1281;
 	}
@@ -2496,11 +2621,13 @@ static int ztp_parse_dt(struct device_node *node, struct ztp_device *cdev)
 
 static void ztp_probe_work(struct work_struct *work)
 {
+	TPD_DMESG("ztp_probe_work in");
 #ifdef CONFIG_TOUCHSCREEN_ILITEK_TDDI_V3
 	ilitek_plat_dev_init();
 #endif
-#ifdef CONFIG_TOUCHSCREEN_HIMAX_COMMON
-	himax_common_init();
+#ifdef CONFIG_TOUCHSCREEN_HIMAX_HX83122A_LBP
+	TPD_DMESG("himax_common_init in");
+	//himax_common_init();
 #endif
 #ifdef CONFIG_TOUCHSCREEN_CHIPONE
 	cts_i2c_driver_init();
@@ -2517,6 +2644,9 @@ static void ztp_probe_work(struct work_struct *work)
 #ifdef CONFIG_TOUCHSCREEN_FTS_3681
 	fts_ts_init();
 #endif
+#ifdef CONFIG_TOUCHSCREEN_FTS_3683G
+	fts_ts_spi_init();
+#endif
 #ifdef CONFIG_TOUCHSCREEN_GOODIX_BRL_V2
 	goodix_ts_core_init();
 #endif
@@ -2529,11 +2659,17 @@ static void ztp_probe_work(struct work_struct *work)
 #ifdef CONFIG_TOUCHSCREEN_GOODIX_BRL_THP
 	goodix_thp_spi_init();
 #endif
+#ifdef CONFIG_TOUCHSCREEN_GOODIX_BRL_FOLD_THP
+	goodix_thp_spi_init();
+#endif
 #ifdef CONFIG_TOUCHSCREEN_CHSC5XXX
 	semi_i2c_device_init();
 #endif
-#ifdef CONFIG_TOUCHSCREEN_NT36XXX_TOUCH_36532W
-	nvt_driver_init();
+#ifdef CONFIG_TOUCHSCREEN_SYNA_TCM2_S3930T_LBP
+	syna_dev_module_init();
+#endif
+#ifdef CONFIG_TOUCHSCREEN_SYNA_TCM2_S3930T
+	syna_dev_module_init();
 #endif
 }
 
@@ -2744,8 +2880,8 @@ static void __exit zte_touch_exit(void)
 #ifdef CONFIG_TOUCHSCREEN_ILITEK_TDDI_V3
 	ilitek_plat_dev_exit();
 #endif
-#ifdef CONFIG_TOUCHSCREEN_HIMAX_COMMON
-	himax_common_exit();
+#ifdef CONFIG_TOUCHSCREEN_HIMAX_HX83122A_LBP
+	//himax_common_exit();
 #endif
 #ifdef CONFIG_TOUCHSCREEN_CHIPONE
 	cts_i2c_driver_exit();
@@ -2765,6 +2901,9 @@ static void __exit zte_touch_exit(void)
 #ifdef CONFIG_TOUCHSCREEN_FTS_3681
 	fts_ts_exit();
 #endif
+#ifdef CONFIG_TOUCHSCREEN_FTS_3683G
+	fts_ts_spi_exit();
+#endif
 #ifdef CONFIG_TOUCHSCREEN_GOODIX_BRL_V2
 	goodix_ts_core_exit();
 #endif
@@ -2777,11 +2916,20 @@ static void __exit zte_touch_exit(void)
 #ifdef CONFIG_TOUCHSCREEN_GOODIX_BRL_THP
 	goodix_thp_spi_exit();
 #endif
+#ifdef CONFIG_TOUCHSCREEN_GOODIX_BRL_FOLD_THP
+	goodix_thp_spi_exit();
+#endif
 #ifdef CONFIG_TOUCHSCREEN_CHSC5XXX
 	semi_i2c_device_exit();
 #endif
 #ifdef CONFIG_TOUCHSCREEN_NT36XXX_TOUCH_36532W
 	nvt_driver_exit();
+#endif
+#ifdef CONFIG_TOUCHSCREEN_SYNA_TCM2_S3930T_LBP
+	syna_dev_module_exit();
+#endif
+#ifdef CONFIG_TOUCHSCREEN_SYNA_TCM2_S3930T
+	syna_dev_module_exit();
 #endif
 	zte_touch_deinit();
 	platform_driver_unregister(&zte_touch_device_driver);

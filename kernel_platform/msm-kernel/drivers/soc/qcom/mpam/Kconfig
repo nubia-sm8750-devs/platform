@@ -31,20 +31,17 @@ config QTI_PLATFORM_MPAM_INTERFACE
 	default n
 	help
 	  This enables QCOM Platform MPAM configfs interface support.
-	  User can config Platform MPAM gear for NOC bandwidth control
-	  or SLC size control. Byte count monitors are also available to
+	  User can config Platform MPAM gear for NOC bandwidth control.
+	  Byte count monitors are also available to help to the
+	  setting.
+
+config QTI_SLC_MPAM_INTERFACE
+	tristate "Enable QCOM SLC MPAM configfs support"
+	depends on QTI_MPAM_MSC_SLC && CONFIGFS_FS
+	default n
+	help
+	  This enables QCOM SLC MPAM configfs interface support.
+	  User can config SLC MPAM gear for SLC size control.
+	  Miss count and capacity monitors are also available to
 	  help to the setting.
 
-config QTI_MPAM_MSC
-	tristate "Enable QCOM MSC parent driver"
-	depends on QTI_MPAM && CONFIGFS_FS
-	default n
-	help
-	Generic MSC driver to support child MSC node abstration and generic API
-
-config QTI_MPAM_MSC_SLC
-	tristate "Enable QCOM MSC SLC driver"
-	depends on QTI_MPAM && CONFIGFS_FS && QTI_MPAM_MSC
-	default n
-	help
-	MSC driver to support MSC SLC functionality

@@ -8,6 +8,7 @@
 ** Author : Display
 ******************************************************************/
 #include "zte_disp_feature.h"
+#include "zte_disp_backlight.h"
 #include "zte_disp_pm.h"
 
 void feed_panel_cmds(struct dsi_panel *panel, u32 feature, u32 mode)
@@ -118,6 +119,10 @@ int zte_set_disp_parameter(struct dsi_panel *panel, u32 feature, u32 feature_mod
         case ZTE_LCD_HBM_CTRL:
             if (hbm_status != feature_mode) {
                 hbm_status = feature_mode;
+                if (hbm_status) {
+                    dsi_panel_dim_handle(panel, false, true);
+                    panel->disp_feature[ZTE_LCD_DIM_CTRL].mode = 0;
+                }
                 feed_panel_cmds(panel, ZTE_LCD_HBM_CTRL, feature_mode);
                 if (from_node) {
                     panel->disp_feature[feature].mode = feature_mode;
@@ -148,7 +153,7 @@ int zte_set_disp_parameter(struct dsi_panel *panel, u32 feature, u32 feature_mod
             if (priv_info) {
                 count = priv_info->cmd_sets[DSI_CMD_SET_ZTE_BL].count;
                 cmds = priv_info->cmd_sets[DSI_CMD_SET_ZTE_BL].cmds;
-                if (cmds && count > 1) {
+                if (cmds && count >= 1) {
                     tx_buf = (u8 *)cmds[count-1].msg.tx_buf;
                     if (tx_buf && tx_buf[0] == 0x51) {
                         tx_buf[1] = feature_mode >> 8;
@@ -161,6 +166,15 @@ int zte_set_disp_parameter(struct dsi_panel *panel, u32 feature, u32 feature_mod
             priv_info->cmd_sets[DSI_CMD_SET_ZTE_BL].logable = feature == ZTE_LCD_SET_BL ? true : false;
             rc = zte_dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_ZTE_BL);
             break;
+        case ZTE_LCD_MIN_FPS:
+            #ifdef CONFIG_DRM_ZTE_DISP_LTPO
+                panel->min_fps = feature_mode;
+                zte_dsi_panel_update_ddic_fps(panel, 120, panel->min_fps);
+            #endif
+            break;
+        case ZTE_LCD_LOCAL_HBM_CTRL:
+            rc = zte_dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_ZTE_LOCAL_HBM_OFF + feature_mode);
+            break;
         default:
             break;
     }
@@ -169,3 +183,71 @@ exit:
     mutex_unlock(&panel->panel_lock);
     return rc;
 }
+
+#ifdef CONFIG_DRM_ZTE_DISP_LTPO
+void zte_dsi_panel_update_ddic_fps(struct dsi_panel *panel, u32 max_fps, u32 min_fps)
+{
+    int rc = 0;
+    struct dsi_display_mode_priv_info *priv_info;
+    struct dsi_cmd_desc *cmds = NULL;
+    u8 *tx_buf;
+    u32 count;
+
+    if (!panel)
+        return;
+    
+    max_fps = panel->cur_mode->timing.refresh_rate;
+
+    if (min_fps > max_fps) {
+        return;
+    }
+
+    pr_info("MSM_LCD %s panel min_fps = %d\n", panel->type, min_fps);
+    // normal mode fps change
+    if (!strcmp(panel->type, "primary")) {
+        if (min_fps == 120) {
+            rc = zte_dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_120_FPS);
+            return;
+        }
+        if (panel->minfps_index1 !=0 && panel->minfps_index2 !=0) {
+            if (panel->cur_mode)
+                priv_info = panel->cur_mode->priv_info;
+            else
+                priv_info = NULL;
+            if (priv_info) {
+                u32 pause = 360 / min_fps - 3;
+                u32 high = (pause >> 8) << 4;
+                u32 low = pause & 0xFF;
+                pr_info("[MSM_LCD] fps (0x%x, 0x%x)!\n", high, low);
+                count = priv_info->cmd_sets[DSI_CMD_SET_MIN_FPS].count;
+                cmds = priv_info->cmd_sets[DSI_CMD_SET_MIN_FPS].cmds;
+                if (cmds && count >= 1) {
+                    tx_buf = (u8 *)cmds[panel->minfps_index1].msg.tx_buf;
+                    tx_buf[1] = high;
+                    tx_buf = (u8 *)cmds[panel->minfps_index2].msg.tx_buf;
+                    tx_buf[1] = low;
+                }
+                rc = zte_dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_MIN_FPS);
+            }
+        }
+    } else {
+        u32 cmd_base = DSI_CMD_SET_1_FPS;
+        if (min_fps >= 120) {
+            cmd_base = DSI_CMD_SET_120_FPS;
+        } else if (min_fps >= 90) {
+            cmd_base = DSI_CMD_SET_90_FPS;
+        } else if (min_fps >= 60) {
+            cmd_base = DSI_CMD_SET_60_FPS;
+        } else if (min_fps >= 30) {
+            cmd_base = DSI_CMD_SET_30_FPS;
+        } else if (min_fps >= 10) {
+            cmd_base = DSI_CMD_SET_10_FPS;
+        } else if (min_fps >= 5) {
+            cmd_base = DSI_CMD_SET_5_FPS;
+        } else if (min_fps >= 1) {
+            cmd_base = DSI_CMD_SET_1_FPS;
+        }
+        rc = zte_dsi_panel_tx_cmd_set(panel, cmd_base);
+    }
+}
+#endif

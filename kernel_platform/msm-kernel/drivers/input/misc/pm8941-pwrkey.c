@@ -165,10 +165,14 @@ static void pwrkey_poweroff(struct work_struct *work) {
         //qcom_scm_set_download_mode(QCOM_DOWNLOAD_FULLDUMP, 0);
         vendor_mod_ponreg(pon);
     } else {
+      /* Started by AICoder, pid:i985fv76b8vb9eb149d90a2880c20e02ea26baa2 */
         if (!is_s2_warm_reset()) {
             dev_err(pon->dev, "%s: power key long pressed, trigger kernel reboot\n", __func__);
             kernel_restart("LONGPRESS");
+        } else {
+            panic("LONGPRESS");
         }
+      /* Ended by AICoder, pid:i985fv76b8vb9eb149d90a2880c20e02ea26baa2 */
     }
 }
 

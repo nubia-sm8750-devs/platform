@@ -24,7 +24,7 @@ uint8_t Firmware[FIRMWARE_NUM];
 uint32_t LoadFirmware(VI530X_DEV dev)
 {
 	const struct firmware *vi530x_firmware;
-	const char *fw_name = "VI5300-M40_G05_R03_V1.03.bin";
+	const char *fw_name = "VI5300-M40_G05_R03_V1.05.bin";
 	uint32_t data_size;
 	int err;
 

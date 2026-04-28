@@ -5,6 +5,7 @@
 #include "../sde/sde_trace.h"
 #include "zte_disp_work.h"
 #include "zte_disp_layer.h"
+#include "zte_disp_backlight.h"
 #include <drm/drm_vblank.h>
 
 #define to_sde_encoder_phys_cmd(x) \
@@ -53,6 +54,19 @@ void sync_te(struct sde_encoder_virt *sde_enc) {
         vsync_area = 200;
     }
 
+	if (strncmp(p->name, "HX8874_9p06_cmd_mode_panel_with_DSC", strlen("HX8874_9p06_cmd_mode_panel_with_DSC")) == 0) {
+        if (fps == 120) {
+            vsync_area = 4200;
+        } else if (fps == 60) {
+            vsync_area = 12000;
+        } else if (fps == 90) {
+            vsync_area = 9000;
+        } else if (fps == 144) {
+            vsync_area = 3500;
+        } else if (fps == 165) {
+            vsync_area = 1000;
+        }
+    }
     us_per_frame = 1000000 / fps;
 
     if (c_conn->encoder)
@@ -127,7 +141,11 @@ void sde_make_fod_trigger(struct dsi_panel *panel, bool fod)
             return;
     }
 
-    queue_delayed_work(panel->icon_workq, &panel->icon_delayed_work, 0);
+    if (panel->power_mode == SDE_MODE_DPMS_LP1 || panel->power_mode == SDE_MODE_DPMS_LP2) {
+        queue_delayed_work(panel->icon_workq, &panel->icon_delayed_work, msecs_to_jiffies(50));
+    } else {
+        queue_delayed_work(panel->icon_workq, &panel->icon_delayed_work, 0);
+    }
 
     last_fod = fod;
 }
@@ -200,29 +218,33 @@ void sde_feeds_syncbl(struct sde_encoder_virt *sde_enc, u64 flag)
     dark = sde_connector_get_property(c_conn->base.state, CONNECTOR_PROP_ZTE_HDR_RATIO);
 
     if (dark != last_dark) {
-        last_dark = dark;
-        //pr_err("MSM_LCD dark = %llu\n", dark);
-        if (!dark) {
+        //pr_info("MSM_LCD last_dark=%llu, dark=%llu\n", last_dark, dark); 
+        if ((last_dark == 0 && dark > 0) || !dark) {
+            dsi_panel_dim_handle(p, false, false);
             sync_te(sde_enc);
             zte_set_disp_parameter(p, ZTE_LCD_SET_SYNC_BL, bl, false);
+            last_dark = dark;
             return;
         }
+        last_dark = dark;
     }
 
     if (panel_layer_contains_exhdr(flag) || panel_layer_contains_hdrvideo(flag)) {
         if (bl != last_bl) {
-            last_bl = bl;
             if (bl > 0) {
-                //pr_err("MSM_LCD drm_bl = %d\n", bl);
+                //pr_info("MSM_LCD last_bl=%d, drm_bl=%d\n", last_bl, bl);
                 SDE_ATRACE_BEGIN("sde_sync_bl");
-                sync_te(sde_enc);
                 zte_set_disp_parameter(p, ZTE_LCD_SET_SYNC_BL, bl, false);
+                if (panel_layer_contains_hdrvideo(flag))
+                    dsi_panel_dim_handle(p, true, false);
                 SDE_ATRACE_END("sde_sync_bl");
             }
+            last_bl = bl;
         }
     }
 }
 
+#ifdef CONFIG_DRM_ZTE_DISP_FOD
 int sde_connector_feed_cmds_sync_frame(void *sde_encoder_virt)
 {
     struct sde_encoder_virt *sde_enc = sde_encoder_virt;
@@ -241,7 +263,7 @@ int sde_connector_feed_cmds_sync_frame(void *sde_encoder_virt)
 	}
 
     if (c_conn->connector_type != DRM_MODE_CONNECTOR_DSI) {
-		pr_err("not in dsi mode\n");
+		//pr_err("not in dsi mode\n");
 		return 0;
 	}
 
@@ -255,3 +277,4 @@ int sde_connector_feed_cmds_sync_frame(void *sde_encoder_virt)
 
     return 0;
 }
+#endif

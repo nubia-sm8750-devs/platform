@@ -2785,6 +2785,16 @@ static ssize_t osc_save_store(struct device *dev,
 	return count;
 }
 
+/* Started by AICoder, pid:e1597hcdafjcccd14d690a2f40aa02042f87c6b3 */
+static ssize_t pre_f0_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+    cdev_t *cdev = dev_get_drvdata(dev);
+    struct aw_haptic *aw_haptic = container_of(cdev, struct aw_haptic, vib_dev);
+
+    return snprintf(buf, PAGE_SIZE, "pre_f0 = %d\n", aw_haptic->info.f0_pre);
+}
+/* Ended by AICoder, pid:e1597hcdafjcccd14d690a2f40aa02042f87c6b3 */
+
 static DEVICE_ATTR(f0, S_IWUSR | S_IRUGO, f0_show, NULL);
 static DEVICE_ATTR(seq, S_IWUSR | S_IRUGO, seq_show, seq_store);
 static DEVICE_ATTR(reg, S_IWUSR | S_IRUGO, reg_show, reg_store);
@@ -2828,6 +2838,7 @@ static DEVICE_ATTR(f0_save, S_IWUSR | S_IRUGO, f0_save_show, f0_save_store);
 static DEVICE_ATTR(cont_save, S_IWUSR | S_IRUGO, cont_save_show, cont_save_store);
 static DEVICE_ATTR(activate_aw, S_IWUSR | S_IRUGO, activate_aw_show, activate_aw_store);
 static DEVICE_ATTR(duration_aw, S_IWUSR | S_IRUGO, duration_aw_show, duration_aw_store);
+static DEVICE_ATTR(pre_f0, S_IWUSR | S_IRUGO, pre_f0_show, NULL);
 
 static struct attribute *vibrator_attributes[] = {
 #ifdef AW_DUPLICATE_NOTES
@@ -2864,6 +2875,7 @@ static struct attribute *vibrator_attributes[] = {
 	&dev_attr_duration_aw.attr,
 	&dev_attr_activate_aw.attr,
 	&dev_attr_cont_save.attr,
+	&dev_attr_pre_f0.attr,
 	NULL
 };
 

@@ -35,8 +35,6 @@ const struct proc_ops lcd_info_proc_fops= {
 
 void load_panel_info(void *panel) {
     struct dsi_panel *p = (struct dsi_panel *)panel;
-    if (!strcmp(p->type, "primary")) {
-        proc_create_data("driver/lcd_id", 0664, NULL, &lcd_info_proc_fops, panel);
-        pr_info("MSM_LCD create lcd_id node\n");
-    }
+    pr_info("MSM_LCD create %s lcd_id node\n", p->type);
+	proc_create_data(!strcmp(p->type, "primary") ? "driver/lcd_id" : "driver/sec_lcd_id", 0664, NULL, &lcd_info_proc_fops, panel);
 }

@@ -49,6 +49,7 @@ LOCAL_MODULE_KO_DIRS += dsp/adsp_loader_dlkm.ko
 LOCAL_MODULE_KO_DIRS += dsp/audio_prm_dlkm.ko
 LOCAL_MODULE_KO_DIRS += dsp/q6_pdr_dlkm.ko
 LOCAL_MODULE_KO_DIRS += dsp/aw882xx/aw882xx_dlkm.ko
+LOCAL_MODULE_KO_DIRS += dsp/tfa9874/tfa98xx_dlkm.ko
 LOCAL_MODULE_KO_DIRS += dsp/sound/smartpa_stat_dlkm.ko
 LOCAL_MODULE_KO_DIRS += soc/pinctrl_lpi_dlkm.ko
 LOCAL_MODULE_KO_DIRS += soc/swr_dlkm.ko

@@ -214,6 +214,11 @@ struct drm_gem_object *msm_gem_prime_import(struct drm_device *dev,
 	 */
 	if (vmid_flags.is_cp_pixel) {
 		attach_dev = kms->funcs->get_address_space_device(kms, MSM_SMMU_DOMAIN_SECURE);
+//add patch for GEM_NOC from micode and 8850 code
+		if (!attach_dev)
+			attach_dev = kms->funcs->get_address_space_device(kms,
+					MSM_SMMU_DOMAIN_UNSECURE);
+//add patch for GEM_NOC from micode and 8850 code end
 	} else if (!iommu_present(&platform_bus_type) || vmid_flags.is_tvm
 		   || vmid_flags.is_cam_preview || vmid_flags.is_sec_display) {
 		attach_dev = dev->dev;

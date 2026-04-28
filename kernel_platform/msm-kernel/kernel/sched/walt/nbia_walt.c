@@ -549,7 +549,7 @@ bool change_allowed(struct task_struct *p, struct cpumask *new_mask){
    if(cpumask_subset(new_mask, &cpus_allowed)){
       return true;
    }
-   return false;
+   return true;
 }
 u32 nbia_task_demand_boost(struct task_struct *p, u32 orig_pred_demand){
   int x = -1;
@@ -886,6 +886,62 @@ bool nbia_update_cpus_allowed(void *unused, struct task_struct *p,
     }
     return true;
 }
+
+// bug workqueue issue workaround
+/* this hook is only a icky workaround and has no actual significance in code logic. */
+#define RESCHEDULE_WORKAROUND_THRESHOLD 100000000  // 100ms
+/* Started by AICoder, pid:u5851nc3a9he9481424708fc20e9c94fe533f0ca */
+/**
+ * zte_workaround_update_deadline_handler - 处理CFS队列中任务的执行时间，必要时重新调度。
+ *
+ * @unused: 未使用的参数。
+ * @cfs_rq: CFS运行队列。
+ * @se: 调度实体。
+ * @skip_preempt: 是否跳过抢占的标志。
+ */
+static void zte_workaround_update_deadline_handler(void *unused, struct cfs_rq *cfs_rq, struct sched_entity *se, bool *skip_preempt)
+{
+    struct rq *rq;
+    u64 ran, slice;
+    s64 delta;
+    int cpu;
+    int this_cpu = smp_processor_id();
+
+    // 检查输入参数是否为NULL
+    if (!cfs_rq || !se) {
+        // printk(KERN_INFO "ztedbg unexpected NULL at zte_workaround_update_deadline_handler\n");
+        return;
+    }
+
+    rq = rq_of(cfs_rq);
+    cpu = cpu_of(rq);
+    if (cpu != this_cpu) {
+        return;
+    }
+
+    // 检查CFS队列上是否有超过一个任务在运行
+    if (rq->cfs.h_nr_running > 1) {
+        // 获取当前任务的执行时间
+        ran = se->sum_exec_runtime - se->prev_sum_exec_runtime;
+
+        // 检查执行时间是否超过阈值
+        if (ran > RESCHEDULE_WORKAROUND_THRESHOLD) {
+            slice = se->slice;
+            delta = slice - ran;
+
+            // 如果任务已经消耗了其时间片
+            if (delta < 0) {
+                // 打印调试信息
+                // printk(KERN_INFO "ztedbg zte_workaround_update_deadline_handler %d %lld, %lld, %lld\n",
+                //        rq->cfs.h_nr_running, se->sum_exec_runtime, se->prev_sum_exec_runtime, delta);
+                // 重新调度当前任务
+                resched_curr(rq);
+            }
+        }
+    }
+}
+/* Ended by AICoder, pid:u5851nc3a9he9481424708fc20e9c94fe533f0ca */
+
 static void nbia_sched_setaffinity_early(void *unused, struct task_struct *p, const struct cpumask *new_mask, bool *retval)
 {
     struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
@@ -1398,7 +1454,7 @@ static ssize_t sched_affinity_ctrl_store(struct kobject *kobj, struct kobj_attri
     char chBuffer[256] = { 0 };
     char *pchTmp = NULL;
     char *optStr = NULL;
-    int cmask_info[2] = { -1 };
+    int cmask_info[3] = { -1 };
     int cpu_bit_dec[CPU_CORES] = {1, 2, 4, 8, 16, 32, 64, 128};
     int index = 0;
     int index_tmp = 0;
@@ -1855,6 +1911,11 @@ void nbia_init(void){
        printk(KERN_INFO "nbia_init sysfs_create_group failed! error:%d\n", error);
        return;
     }
+
+    // bug workqueeu issue workaround
+    register_trace_android_rvh_update_deadline(zte_workaround_update_deadline_handler, NULL);
+    printk(KERN_INFO "ztedbg register update deadline hook 100\n");
+
     // register_trace_android_rvh_set_cpus_allowed_comm(android_rvh_set_cpus_allowed_comm, NULL);
     register_trace_android_vh_sched_setaffinity_early(nbia_sched_setaffinity_early, NULL);
     //创建kthread及worker，如果kthread及worker创建失败，直接退出

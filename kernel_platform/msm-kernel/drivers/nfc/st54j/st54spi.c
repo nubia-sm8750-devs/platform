@@ -454,7 +454,7 @@ static void st54spi_power_off(struct st54spi_data *st54spi)
 	}
 	// Set SE_PWR_REQ / SE_nRESET to low
 	if (st54spi->power_or_nreset_gpio) {
-		gpio_set_value(st54spi->power_or_nreset_gpio, 0);
+		gpio_set_value(st54spi->power_or_nreset_gpio, 1);
 		st54spi->last_nreset_falling = ktime_get();
 	}
 
@@ -1273,8 +1273,11 @@ static int st54spi_probe(struct spi_device *spi)
 
 	if (status == 0)
 		spi_set_drvdata(spi, st54spi);
-	else
+	else {
 		kfree(st54spi);
+		st54spi = NULL;
+		return status;
+	}
 
 	(void)st54spi_parse_dt(&spi->dev, st54spi);
 

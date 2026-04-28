@@ -28,6 +28,7 @@ struct  task_struct *aperture_thread = NULL;
 unsigned long long debug_aperture_ms = 30;
 unsigned long long debug_aperture_move_count = 10;
 unsigned long long debug_aperture_debug_step = 0 ;
+uint32_t gpio_avdd = 0;
 
 module_param(debug_aperture_ms, ullong, 0644);
 module_param(debug_aperture_move_count, ullong, 0644);
@@ -1139,14 +1140,16 @@ release_mutex:
 
 ssize_t camera_open_zte_adj_aperture(struct cam_adj_aperture_ctrl_t *pa_ctrl){
     int ret = 0;
-
-    gpio_direction_output(56+512, 1);
+    of_property_read_u32(pa_ctrl->soc_info.dev->of_node, "gpio-avdd", &gpio_avdd);
+    gpio_request(gpio_avdd+512, "adj_aperture avdd gpio");
+    gpio_direction_output(gpio_avdd+512, 1);
     msleep(2);
+
     gpio_direction_output(54+512, 1); //gpio+offset
     msleep(2);
     gpio_direction_output(153+512, 1);
     msleep(2);
-    ret = camera_io_init(&pa_ctrl->io_master_info);
+    //ret = camera_io_init(&pa_ctrl->io_master_info);
     if (ret < 0) {
         CAM_ERR(CAM_ACTUATOR, "cci init failed: rc: %d", ret);
     }
@@ -1155,15 +1158,17 @@ ssize_t camera_open_zte_adj_aperture(struct cam_adj_aperture_ctrl_t *pa_ctrl){
 }
 
 ssize_t camera_close_zte_adj_aperture(struct cam_adj_aperture_ctrl_t *pa_ctrl){
-
     gpio_direction_output(153+512, 0);
     msleep(3);
     gpio_direction_output(54+512, 0);
     msleep(2);
-    gpio_direction_output(56+512, 0);
+
+    of_property_read_u32(pa_ctrl->soc_info.dev->of_node, "gpio-avdd", &gpio_avdd);
+    gpio_direction_output(gpio_avdd+512, 0);
+    gpio_free(gpio_avdd+512);
     msleep(2);
 
-    camera_io_release(&pa_ctrl->io_master_info);
+    //camera_io_release(&pa_ctrl->io_master_info);
 
     return  0;
 }
@@ -1186,7 +1191,10 @@ static ssize_t camera_zte_adj_aperture_stream_on(struct cam_adj_aperture_ctrl_t 
     .delay = 0,
     };
 
+    camera_io_init(&pa_ctrl->io_master_info);
     ret = camera_io_dev_write_continuous(&pa_ctrl->io_master_info, &adj_write_setting, 0);
+    camera_io_release(&pa_ctrl->io_master_info);
+
     msleep(10);
 
     return  0;
@@ -1210,7 +1218,10 @@ static ssize_t camera_zte_adj_aperture_stream_off(struct cam_adj_aperture_ctrl_t
     .delay = 0,
     };
 
+    camera_io_init(&pa_ctrl->io_master_info);
     ret = camera_io_dev_write_continuous(&pa_ctrl->io_master_info, &adj_write_setting, 0);
+    camera_io_release(&pa_ctrl->io_master_info);
+
     msleep(2);
 
     return  0;
@@ -1236,7 +1247,9 @@ static ssize_t camera_zte_adj_aperture_switch_state(unsigned int step_value, str
         CAM_INFO(CAM_ACTUATOR, "step_value: %0x", step_value);
         adj_setting.reg_addr = 0x10; //open max
         adj_setting.reg_data = step_value;
+        camera_io_init(&pa_ctrl->io_master_info);
         ret = camera_io_dev_write_continuous(&pa_ctrl->io_master_info, &adj_write_setting, 0);
+        camera_io_release(&pa_ctrl->io_master_info);
 
     return  0;
 }
@@ -1392,32 +1405,36 @@ int  camera_zte_aperture_thread(void *data)
         if(kthread_should_stop())
         break;
 
-        if(kfifo_len(&aperQ))
+        if (a_ctrl->cam_act_state == CAM_ADJ_APERTURE_START)
         {
-            if(current_state == APERTURE_OFF)
+
+            if(kfifo_len(&aperQ))
             {
-                camera_zte_adj_aperture_stream_on(a_ctrl);
-                current_state = APERTURE_ON;
+                if(current_state == APERTURE_OFF)
+                {
+                    camera_zte_adj_aperture_stream_on(a_ctrl);
+                    current_state = APERTURE_ON;
+                }
+
+                if(kfifo_get(&aperQ, &step))
+                {
+                    camera_zte_aperture_move(step, a_ctrl);
+                    CAM_INFO(CAM_ACTUATOR, "%0x fifo len %0x %0x current_state %d", step, kfifo_len(&aperQ), get_task_pid(current, PIDTYPE_PID), current_state);
+                }
+
+                aperture_off_count = 0;
             }
 
-            if(kfifo_get(&aperQ, &step))
+            aperture_off_count++;
+            if(aperture_off_count >= 35)
             {
-                camera_zte_aperture_move(step, a_ctrl);
-                CAM_INFO(CAM_ACTUATOR, "%0x fifo len %0x %0x current_state %d", step, kfifo_len(&aperQ), get_task_pid(current, PIDTYPE_PID), current_state);
-            }
-
-            aperture_off_count = 0;
-        }
-
-        aperture_off_count++;
-        if(aperture_off_count >= 35)
-        {
-            aperture_off_count = 0;
-            if(current_state == APERTURE_ON)
-            {
-                camera_zte_adj_aperture_stream_off(a_ctrl);
-                current_state = APERTURE_OFF;
-                CAM_INFO(CAM_ACTUATOR, "aperture off");
+                aperture_off_count = 0;
+                if(current_state == APERTURE_ON)
+                {
+                    camera_zte_adj_aperture_stream_off(a_ctrl);
+                    current_state = APERTURE_OFF;
+                    CAM_INFO(CAM_ACTUATOR, "aperture off");
+                }
             }
         }
 
@@ -1428,12 +1445,16 @@ int  camera_zte_aperture_thread(void *data)
 }
 
 
-void  cam_zte_adj_aperture_thread_resources_close(struct cam_adj_aperture_ctrl_t *a_ctrl)
+void  aperture_thread_resources_close(struct cam_adj_aperture_ctrl_t *a_ctrl)
 {
     if(aperture_thread)
     {
         kthread_stop(aperture_thread);
         aperture_thread = NULL;
+        if(a_ctrl)
+        {
+            camera_close_zte_adj_aperture(a_ctrl);
+        }
     }
 }
 
@@ -1455,9 +1476,9 @@ int32_t cam_zte_adj_aperture_driver_cmd(struct cam_adj_aperture_ctrl_t *a_ctrl,
     mutex_lock(&(a_ctrl->actuator_mutex));
     switch (cmd->op_code) {
     case CAM_ACQUIRE_DEV: {
-       // a_ctrl->io_master_info.client->addr = 0x6c;
+        camera_open_zte_adj_aperture(a_ctrl);
         a_ctrl->io_master_info.qup_client->i2c_client->addr = 0x6c;
-        //camera_open_zte_adj_aperture(a_ctrl);
+
         a_ctrl->cam_act_state = CAM_ADJ_APERTURE_ACQUIRE;
         if(aperture_thread == NULL)
         {
@@ -1472,6 +1493,7 @@ int32_t cam_zte_adj_aperture_driver_cmd(struct cam_adj_aperture_ctrl_t *a_ctrl,
             aperture_thread = NULL;
         }
         kfifo_reset(&aperQ);
+        camera_close_zte_adj_aperture(a_ctrl);
 #if  0
         if (a_ctrl->cam_act_state == CAM_ADJ_APERTURE_START) {
             rc = -EINVAL;
@@ -1536,7 +1558,11 @@ int32_t cam_zte_adj_aperture_driver_cmd(struct cam_adj_aperture_ctrl_t *a_ctrl,
             goto release_mutex;
         }
 #endif
-        camera_zte_adj_aperture_stream_off(a_ctrl);
+        if(a_ctrl->cam_act_state == CAM_ADJ_APERTURE_START)
+        {
+            camera_zte_adj_aperture_stream_off(a_ctrl);
+        }
+
         a_ctrl->cam_act_state = CAM_ADJ_APERTURE_CONFIG;
     }
         break;

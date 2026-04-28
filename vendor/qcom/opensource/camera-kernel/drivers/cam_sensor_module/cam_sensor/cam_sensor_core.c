@@ -1145,6 +1145,8 @@ void cam_sensor_query_cap(struct cam_sensor_ctrl_t *s_ctrl,
 		s_ctrl->sensordata->subdev_id[SUB_MODULE_LED_FLASH];
 	query_cap->ois_slot_id =
 		s_ctrl->sensordata->subdev_id[SUB_MODULE_OIS];
+	query_cap->aperture_slot_id =
+		s_ctrl->sensordata->subdev_id[SUB_MODULE_APERTURE];
 	query_cap->slot_info =
 		s_ctrl->soc_info.index;
 }
@@ -1213,7 +1215,7 @@ int cam_sensor_match_id(struct cam_sensor_ctrl_t *s_ctrl)
 	uint32_t chipid = 0;
 	uint32_t module_id = -1;
 	struct cam_camera_slave_info *slave_info;
-#if 0
+#ifdef ZTE_FEATURE_PV_AR
 	uint32_t ois_firmware_ver = -1;
 	uint32_t i = 0;
 #endif
@@ -1290,7 +1292,7 @@ int cam_sensor_match_id(struct cam_sensor_ctrl_t *s_ctrl)
 	}
 /* Ended by AICoder, pid:x44facb80bo2f6814c260a140006d92c1065741c */
 
-#if 0
+#ifdef ZTE_FEATURE_PV_AR
 	for (i = 0; i < sizeof(g_CameraOisParams) / sizeof(g_CameraOisParams[0]); i++)
 	{
 		if (s_ctrl->ois_firmware_ver != 0xFFFF && s_ctrl->ois_pdev
@@ -1311,7 +1313,8 @@ int cam_sensor_match_id(struct cam_sensor_ctrl_t *s_ctrl)
 				s_ctrl->ois_firmware_ver = g_CameraOisParams[i].FWVersion << 16 | g_CameraOisParams[i].FWDate;
 
 				// compare ver bit16-bit31
-				if ((ois_firmware_ver & 0xFFFF0000) < (s_ctrl->ois_firmware_ver & 0xFFFF0000)) {
+				if (((ois_firmware_ver & 0xFFFF0000) < (s_ctrl->ois_firmware_ver & 0xFFFF0000)) &&
+					(strncmp(s_ctrl->sensor_name, "ov64b40_qvburdock", strlen("ov64b40_qvburdock")) == 0)) {
 					//update ois firmware
 					CAM_ERR(CAM_SENSOR, ": need update ois firmware, read ver 0x%x, default 0x%x"
 						, ois_firmware_ver, s_ctrl->ois_firmware_ver);

@@ -1160,11 +1160,24 @@ static int fix_self_located_mft(ntfs_volume *vol)
 			ntfs_log_info(OK);
 			res = -1;
 		}
-		free(selfloc.mft0);
-		free(selfloc.mft1);
-		free(selfloc.mft2);
-		free(selfloc.attrlist);
 	}
+
+	/* fix coverity issue 12183887 */
+	if (selfloc.mft0)
+		free(selfloc.mft0);
+
+	/* fix coverity issue 12183650 */
+	if (selfloc.mft1)
+		free(selfloc.mft1);
+
+	/* fix coverity issue 12183931 */
+	if (selfloc.mft2)
+		free(selfloc.mft2);
+
+	/* fix coverity issue 12183722 */
+	if (selfloc.attrlist)
+		free(selfloc.attrlist);
+          
 	return (res);
 }
 

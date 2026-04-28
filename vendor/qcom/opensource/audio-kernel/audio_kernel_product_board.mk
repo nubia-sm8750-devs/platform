@@ -54,10 +54,15 @@ endif
 
 ### zte add by QC 20230801
 LOCAL_CFLAGS += $(FEATURE_GLOBAL_CPPFLAGS)
-#ifeq ($(ZTE_FEATURE_AUDIO_AWINIC), true)
+ifeq ($(ZTE_FEATURE_AUDIO_AWINIC), true)
 PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/aw882xx_dlkm.ko
 PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/smartpa_stat_dlkm.ko
-#endif
+endif
+
+ifeq ($(ZTE_FEATURE_AUDIO_GOODIX_TFA), true)
+PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/tfa98xx_dlkm.ko
+PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/smartpa_stat_dlkm.ko
+endif
 
 ifeq ($(call is-board-platform-in-list, gen4 msmnile), true)
 ifneq (,$(filter $(TARGET_BOARD_PLATFORM)$(TARGET_BOARD_SUFFIX), gen4_gvm msmnile_gvmq))

@@ -189,7 +189,7 @@ DEFINE_SIMPLE_ATTRIBUTE(ois_debugfs_cal, ois_debugfs_cal_g,
 
 struct dentry *ois_debugfs_base = NULL;
 int ois_probe = 0;
-#define BUF_SIZE 25
+#define BUF_SIZE 30
 
 void msm_ois_creat_debugfs(void)
 {

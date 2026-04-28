@@ -128,6 +128,33 @@ static int param_set_download_mode(const char *val,
 	} else if (val && strncmp(val, "wdtbark", 7) == 0) {
 		pr_info("ztedbg %s: simulate wdt bark %d\n", __func__, zte_set_wdt_trigger_flag());
 		return -1;
+	} else if (val && strncmp(val, "panicfmt1", 9) == 0) {
+		panic("ztedbg %s: panic format1\n", "abcdefg");  // len=7
+		return -1;
+	} else if (val && strncmp(val, "panicfmt2", 9) == 0) {
+		panic("ztedbg %d %s: panic format2\n", 2, "a1b2c3d4");  // len=8
+		return -1;
+	} else if (val && strncmp(val, "panicfmt3", 9) == 0) {
+		panic("ztedbg %d 0x%u %s: panic format3\n", 3, 3, "ABCDEFGHI");  // len=9
+		return -1;
+	} else if (val && strncmp(val, "panicfmt4", 9) == 0) {
+		panic("ztedbg %ld %d %u %s: panic format4\n", (long)4, 4, 4, "fmt4");  // len=4
+		return -1;
+	} else if (val && strncmp(val, "panicfmt5", 9) == 0) {
+		panic("ztedbg panic format5 %% no arg\n");  // no str
+		return -1;
+	} else if (val && strncmp(val, "panicfmt6", 9) == 0) {
+		panic("");  // no str too, len(fmtstr)=0
+		return -1;
+	} else if (val && strncmp(val, "panicfmt7", 9) == 0) {
+		panic("zte\n");  // no str too, len(fmtstr)=4
+		return -1;
+	} else if (val && strncmp(val, "panicfmt8", 9) == 0) {
+		panic("ztedbg panic format6 %-*s no arg\n", 20, "fmtfmt8\nfmtfmtfmt8");  // no str too
+		return -1;
+	} else if (val && strncmp(val, "panicinpanic", 12) == 0) {
+		panic("ztedbg %s %d %d %d\n", "panicinpanic", 1, 2, 3);
+		return -1;
 	} else {
 		pr_info("ztedbg %s: download mode set\n", val);
 	}

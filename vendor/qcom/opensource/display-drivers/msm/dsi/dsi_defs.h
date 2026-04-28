@@ -324,7 +324,7 @@ enum dsi_cmd_set_type {
 	DSI_CMD_SET_STICKY_STILL_DISABLE,
 	DSI_CMD_SET_STICKY_ON_FLY,
 	DSI_CMD_SET_TRIGGER_SELF_REFRESH,
-#ifdef CONFIG_DRM_ZTE_DISP
+#if defined(CONFIG_DRM_ZTE_DISP) || defined(CONFIG_DRM_ZTE_DISP_QVCORK)
 	DSI_CMD_SET_ZTE_HBM_OFF,
 	DSI_CMD_SET_ZTE_HBM_ON,
 	DSI_CMD_SET_ZTE_AOD_LOW,
@@ -340,6 +340,19 @@ enum dsi_cmd_set_type {
 	DSI_CMD_SET_ZTE_AOD_OFF_HBM_ON,
 	DSI_CMD_SET_ZTE_BL,
 	DSI_CMD_SET_REG_READ,
+	DSI_CMD_SET_ESD_WRITE,
+	DSI_CMD_SET_ZTE_LOCAL_HBM_OFF,
+	DSI_CMD_SET_ZTE_LOCAL_HBM_ON,
+#endif
+#ifdef CONFIG_DRM_ZTE_DISP_LTPO
+	DSI_CMD_SET_MIN_FPS,
+	DSI_CMD_SET_120_FPS,
+	DSI_CMD_SET_90_FPS,
+	DSI_CMD_SET_60_FPS,
+	DSI_CMD_SET_30_FPS,
+	DSI_CMD_SET_10_FPS,
+	DSI_CMD_SET_5_FPS,
+	DSI_CMD_SET_1_FPS,
 #endif
 	DSI_CMD_SET_MAX
 };
@@ -436,7 +449,7 @@ struct dsi_panel_cmd_set {
 	u32 count;
 	u32 ctrl_idx;
 	struct dsi_cmd_desc *cmds;
-#ifdef CONFIG_DRM_ZTE_DISP
+#if defined(CONFIG_DRM_ZTE_DISP) || defined(CONFIG_DRM_ZTE_DISP_QVCORK)
 	const char *name;
 	bool logable;
 #endif
@@ -471,6 +484,7 @@ struct dsi_panel_cmd_set {
  * @avr_step_fps:     AVR step fps rate
  * @esync_enabled:    esync enabled
  * @esync_emsync_fps: esync EM pulse rate
+ * @te_pulse_width_us:         Pulse width of TE in microseconds
  */
 struct dsi_mode_info {
 	u32 h_active;
@@ -501,6 +515,7 @@ struct dsi_mode_info {
 	u32 avr_step_fps;
 	bool esync_enabled;
 	u32 esync_emsync_fps;
+	u32 te_pulse_width_us;
 };
 
 /**

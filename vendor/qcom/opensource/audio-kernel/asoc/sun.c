@@ -480,7 +480,7 @@ static void *def_wcd_mbhc_cal(void)
 #ifdef ZTE_MBHC_CAL
 	btn_high[0] = 100;
 	btn_high[1] = 200;
-	btn_high[2] = 750;
+	btn_high[2] = 500;
 	btn_high[3] = 750;
 	btn_high[4] = 750;
 	btn_high[5] = 750;

@@ -22,6 +22,11 @@
 #include <linux/time.h>
 #include <linux/timekeeping.h>
 #include "vi530x_def.h"
+#include <linux/regulator/driver.h>
+#include <linux/regulator/consumer.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
+
 
 #define INPUT_TOF              ABS_HAT0X
 #define INPUT_CONFIDENCE       ABS_HAT0Y
@@ -100,6 +105,7 @@ struct VI530X_Measurement_Data {
 	uint32_t peak;
 	uint32_t noise;
 	uint32_t integral_times;
+	uint8_t flag;
 };
 
 struct VI530X_XTALK_Calib_Data {
@@ -146,6 +152,10 @@ struct vi530x_data {
 	uint8_t ma_sum;
 	struct mutex work_mutex;
 	bool   pm_ctrl_client_enable;
+#ifdef CONFIG_TOF_VDIG_SUPPLY
+    struct regulator *power;
+#endif
+	struct miscdevice  subtofdev;
 };
 
 union inte_data {
@@ -157,6 +167,14 @@ enum VI530X_INT_STATUS {
 	VI530X_INTR_DISABLED = 0,
 	VI530X_INTR_ENABLED,
 };
+
+typedef struct VI530X_TOF
+{
+    struct  vi530x_data *tof_dev;
+    struct  task_struct *tof_thread;
+    struct  semaphore   tofsem;
+    VI530X_Error        Status;
+}VI530X_TOF;
 
 #define DEBUG
 #define vi530x_infomsg(str, args...) \

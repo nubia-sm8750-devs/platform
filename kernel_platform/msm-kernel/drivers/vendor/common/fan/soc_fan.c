@@ -103,7 +103,7 @@ struct nb_chip {
 
 struct nb_chip *chip = NULL;
 
-#ifdef CONFIG_PANAX_FAN
+#ifdef CONFIG_PMIC_FAN
 static int nb_fan_power_set(struct regulator *pwr_reg, bool enable);
 #else
 static int nb_fan_power_set(struct fan_dev *fan, bool enable);
@@ -149,7 +149,7 @@ static int fan_level_set(struct fan_dev *fan, u8 level)
 		return 0;
  	}
 
-#ifdef CONFIG_PANAX_FAN
+#ifdef CONFIG_PMIC_FAN
 	//use qcom pmic power
 	if(level==FAN_LEVEL_0)
 	    nb_fan_power_set(chip->avdd_ldo, false);
@@ -172,14 +172,30 @@ static int fan_level_set(struct fan_dev *fan, u8 level)
 	/* Ended by AICoder, pid:ce2790ef92137e414e3a0af52056360eaf813ffa */
 	//pstate.usage_power = false;
 
+	//if level equal 5, control fan speed directly by gpio9 instead of pwm
+	/* Started by AICoder, pid:u19660f25fkea5114aac09a400aa262be3e1d500 */
+	if (level == FAN_LEVEL_5) {
+		if (gpio_get_value(chip->fan->pwm_gpio) == 1) {
+        		gpio_direction_output(chip->fan->pwm_gpio, 0);
+		}
+
+		pwm_init_state(fan->pwm_dev, &pstate);
+		pstate.enabled = false;
+	} else {
+		if (gpio_get_value(chip->fan->pwm_gpio) == 0) {
+			gpio_direction_output(chip->fan->pwm_gpio, 1);
+		}
+	}
+
 	rc = pwm_apply_state(fan->pwm_dev, &pstate);
-	if (rc < 0){
+	if (rc < 0) {
 		FAN_DBG("Apply PWM state for fan_level=%d failed, rc=%d\n", level, rc);
 		return rc;
 	}
-	fan->level = level;
 
+	fan->level = level;
 	return rc;
+	/* Ended by AICoder, pid:u19660f25fkea5114aac09a400aa262be3e1d500 */
 }
 static int fan_pwm_set(struct fan_dev *fan, u8 pwm)
 {
@@ -201,7 +217,7 @@ static int fan_pwm_set(struct fan_dev *fan, u8 pwm)
 	return rc;
 }
 
-#ifdef CONFIG_PANAX_FAN
+#ifdef CONFIG_PMIC_FAN
 //use qcom pmic power
 static int nb_fan_power_set(struct regulator *pwr_reg, bool enable)
 {
@@ -397,7 +413,7 @@ static int nb_fan_rpm_check(u32 rpm)
 	level = chip->fan->level;
 	fan_level_set(chip->fan, FAN_LEVEL_0);
 
-#ifdef CONFIG_PANAX_FAN
+#ifdef CONFIG_PMIC_FAN
 	//use qcom pmic power
 	nb_fan_power_set(chip->avdd_ldo, false);
 	msleep(50);
@@ -729,7 +745,7 @@ static int nb_fan_parse_dt(struct nb_chip *chip)
 	return rc;
 }
 
-#ifdef CONFIG_PANAX_FAN
+#ifdef CONFIG_PMIC_FAN
 static int nb_fan_power_proc(struct nb_chip *chip)
 {
 	int ret = 0;
@@ -837,7 +853,7 @@ static int nb_fan_gpio_proc(struct nb_chip *chip)
 	}
 	FAN_DBG("pwm gpio status is:%d.", gpio_get_value(chip->fan->pwm_gpio));
 
-#ifdef CONFIG_PANAX_FAN
+#ifdef CONFIG_PMIC_FAN
 
 #else
 // use ldo power

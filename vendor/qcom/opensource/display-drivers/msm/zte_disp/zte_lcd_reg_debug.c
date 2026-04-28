@@ -39,7 +39,13 @@ ssize_t zte_dsi_reg_dread(struct dsi_panel *panel, struct zte_lcd_reg_debug *reg
 
         tx_buf = (u8 *)ld_read_config.read_cmd.cmds[0].msg.tx_buf;
 		tx_buf[0] = reg_debug->wbuf[0];
-		pr_info("MSM_LCD read reg addr 0x%02x, length = %d", tx_buf[0], ld_read_config.cmds_rlen);
+		if (reg_debug->is_read_mode == REG_GENERIC_READ_MODE_LP) {
+			ld_read_config.read_cmd.cmds[0].msg.type = 0x14;
+		} else {
+			ld_read_config.read_cmd.cmds[0].msg.type = 0x6;
+		}
+		pr_info("MSM_LCD read reg addr 0x%02x,length=%d,is_read_mode=%d,type=%x", tx_buf[0], ld_read_config.cmds_rlen,
+			reg_debug->is_read_mode, ld_read_config.read_cmd.cmds[0].msg.type);
 		rc = dsi_panel_read_cmd_set(panel, &ld_read_config);
 		if (rc <= 0) {
 			pr_err("[%s][%s] failed to read cmds, rc=%d\n", __func__, panel->name, rc);
@@ -47,7 +53,7 @@ ssize_t zte_dsi_reg_dread(struct dsi_panel *panel, struct zte_lcd_reg_debug *reg
 			goto done;
 		}
 
-		for(i = 0; i < reg_debug->length; i++) {
+		for(i = 0; i < ld_read_config.cmds_rlen; i++) {
 			pr_info("[%s][%d]0x%02x", __func__, __LINE__, ld_read_config.rbuf[i]);
 			reg_debug->rbuf[i] = ld_read_config.rbuf[i];
 		}
@@ -71,7 +77,7 @@ static void zte_lcd_reg_rw_func(struct dsi_panel *ctrl, struct zte_lcd_reg_debug
 
 	/*if debug this func,define ZTE_LCD_REG_DEBUG 1*/
 	for (i = 0; i < reg_debug->length; i++)
-		pr_info("wbuf[%d]= %x\n", i, reg_debug->wbuf[i]);
+		pr_info("msm_lcd wbuf[%d]= %x\n", i, reg_debug->wbuf[i]);
 
 	if (!ctrl->panel_initialized) {
 		pr_err("MSM_LCD panel is off or not initialized reg read write\n");
@@ -86,16 +92,28 @@ static void zte_lcd_reg_rw_func(struct dsi_panel *ctrl, struct zte_lcd_reg_debug
 		mipi_dsi_dcs_write(dsi, reg_debug->wbuf[0], &reg_debug->wbuf[1], reg_debug->length - 1);
 		break;
     case REG_READ_MODE_LP:
+	case REG_GENERIC_READ_MODE_LP:
 		zte_dsi_reg_dread(ctrl, reg_debug, false);
 		break;
 	case REG_WRITE_MODE_LP:
 		mode_flags = dsi->mode_flags;
 		dsi->mode_flags |= MIPI_DSI_MODE_LPM;
-
 		mipi_dsi_dcs_write(dsi, reg_debug->wbuf[0], &reg_debug->wbuf[1], reg_debug->length - 1);
-
 		dsi->mode_flags = mode_flags;
 		break;
+
+	case REG_GENERIC_WRITE_MODE_LP:
+		mode_flags = dsi->mode_flags;
+		dsi->mode_flags |= MIPI_DSI_MODE_LPM;
+		mipi_dsi_generic_write(dsi, &reg_debug->wbuf[0], reg_debug->length);
+		dsi->mode_flags = mode_flags;
+		break;
+	/*case REG_GENERIC_READ_MODE_LP:
+		mode_flags = dsi->mode_flags;
+		dsi->mode_flags |= MIPI_DSI_MODE_LPM;
+		mipi_dsi_generic_read(dsi, &reg_debug->wbuf[0], sizeof(char), &zte_lcd_reg_debug.rbuf[0], reg_debug->wbuf[zte_lcd_reg_debug.length-1]);
+		dsi->mode_flags = mode_flags;
+		break;*/
 	default:
 		pr_err("%s:rw error\n", __func__);
 		break;
@@ -148,19 +166,33 @@ static void zte_panel_reg_handle(struct dsi_panel *panel, const char *buf, size_
 				return;
 			}
 			zte_lcd_reg_debug.is_read_mode = type;
-			pr_info("read cmd = %x length = %x\n", zte_lcd_reg_debug.wbuf[0], length);
+			pr_info("msm_lcd read cmd = %x length = %x\n", zte_lcd_reg_debug.wbuf[0], length);
 			zte_lcd_reg_rw_func(panel, &zte_lcd_reg_debug);
 
 			zte_lcd_reg_debug.length = length;
 			for (i = 0; i < length; i++)
-				pr_info("read zte_lcd_reg_debug.rbuf[%d]=0x%02x\n", i, zte_lcd_reg_debug.rbuf[i]);
+				pr_info("msm_lcd read zte_lcd_reg_debug.rbuf[%d]=0x%02x\n", i, zte_lcd_reg_debug.rbuf[i]);
 			break;
 		case REG_WRITE_MODE:
 		case REG_WRITE_MODE_LP:
+		case REG_GENERIC_WRITE_MODE_LP:
 			length = zte_lcd_reg_debug.length;
 			zte_lcd_reg_debug.is_read_mode = type;
 			zte_lcd_reg_rw_func(panel, &zte_lcd_reg_debug);
-			pr_info("write cmd = 0x%02x,length = 0x%02x\n", zte_lcd_reg_debug.wbuf[0], length);
+			pr_info("msm_lcd write cmd = 0x%02x,length = 0x%02x\n", zte_lcd_reg_debug.wbuf[0], length);
+			break;
+		case REG_GENERIC_READ_MODE_LP: //don't work right now, neee modify again
+			length = zte_lcd_reg_debug.wbuf[zte_lcd_reg_debug.length-1];
+			if (length < 1) {
+				pr_err("%s:read length is 0\n", __func__);
+				return;
+			}
+			zte_lcd_reg_debug.is_read_mode = type;
+			pr_info("msm_lcd generic read cmd=%x,%x length=%d, %d\n", zte_lcd_reg_debug.wbuf[0], zte_lcd_reg_debug.wbuf[1], zte_lcd_reg_debug.length, length);
+			zte_lcd_reg_rw_func(panel, &zte_lcd_reg_debug);
+			zte_lcd_reg_debug.length = length;
+			for (i = 0; i < length; i++)
+				pr_info("msm_lcd read zte_lcd_reg_debug.rbuf[%d]=0x%02x\n", i, zte_lcd_reg_debug.rbuf[i]);
 			break;
 	}
 }
@@ -249,11 +281,42 @@ static ssize_t sysfs_store_dwritelp(struct kobject *kobj,
 	return count;
 }
 
+static ssize_t sysfs_store_generic_dreadlp(struct kobject *kobj,
+		 struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	struct dsi_panel *panel = get_primary_panel();
+
+	if (!panel) {
+		DSI_ERR("No panel device\n");
+		return -ENODEV;
+	}
+
+	zte_panel_reg_handle(panel, buf, count, REG_GENERIC_READ_MODE_LP);
+	return count;
+}
+
+static ssize_t sysfs_store_generic_dwritelp(struct kobject *kobj,
+		 struct kobj_attribute *attr, const char *buf, size_t count)
+{
+
+	struct dsi_panel *panel = get_primary_panel();
+
+	if (!panel) {
+		DSI_ERR("No panel device\n");
+		return -ENODEV;
+	}
+
+	zte_panel_reg_handle(panel, buf, count, REG_GENERIC_WRITE_MODE_LP);
+	return count;
+}
+
 struct kobj_attribute primary_debug_attrs[] = {
     __ATTR(dread, 0664, sysfs_show_read, sysfs_store_dread),
     __ATTR(dwrite, 0664, NULL, sysfs_store_dwrite),
     __ATTR(dreadlp, 0664, sysfs_show_read, sysfs_store_dreadlp),
     __ATTR(dwritelp, 0664, NULL, sysfs_store_dwritelp),
+    __ATTR(gendreadlp, 0664, sysfs_show_read, sysfs_store_generic_dreadlp),
+    __ATTR(gendwritelp, 0664, NULL, sysfs_store_generic_dwritelp),
 };
 
 void create_sys_file(int id) {

@@ -347,6 +347,7 @@
 		clock-rates = <24000000>;
 		status = "ok";
 		zte-tof-enable;
+		aperture-sd-index = <0>;
 	};
 
 	eeprom_front: qcom,eeprom1 {
@@ -640,9 +641,9 @@
 		status = "ok";
 	};
 	adj_camera: qcom,actuator4 {
-		cell-index = <4>;
+		cell-index = <0>;
 		reg = <0x36>;
-		compatible = "zte,cam-i2c-adj_fnum";
+		compatible = "zte,cam-i2c-aperture";
 		cam_vio-supply = <&BOB1>;
 		cam_clk-supply = <&cam_cc_titan_top_gdsc>;
 		regulator-names = "cam_vio", "cam_clk";
@@ -677,5 +678,6 @@
 		clock-cntl-level = "nominal";
 		clock-rates = <24000000>;
 		status = "ok";
+		gpio-avdd = <56>;
 	};
 };

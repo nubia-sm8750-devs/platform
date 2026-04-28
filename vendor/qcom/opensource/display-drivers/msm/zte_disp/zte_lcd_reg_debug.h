@@ -5,7 +5,9 @@ enum {	/* read or write mode */
 	REG_WRITE_MODE = 0,
 	REG_READ_MODE,
 	REG_WRITE_MODE_LP,
-	REG_READ_MODE_LP
+	REG_READ_MODE_LP,
+	REG_GENERIC_WRITE_MODE_LP,
+	REG_GENERIC_READ_MODE_LP
 };
 
 struct zte_lcd_reg_debug {

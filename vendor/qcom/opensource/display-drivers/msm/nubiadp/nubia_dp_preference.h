@@ -35,6 +35,12 @@
 /* Started by AICoder, pid:337944d4874342414dd0098fd05c830af7f1fb55 */
 #define REDMAGIC_GM001J "GM001J"
 /* Ended by AICoder, pid:337944d4874342414dd0098fd05c830af7f1fb55 */
+#define SKYWORTH_F24G40F "F24G40F"
+#define KTC_KTCM27P20 "1080p60"
+#define REDMAGIC_GM001S "GM001S"
+#define REDMAGIC_GM004 "GM004J"
+#define REDMAGIC_GM004_2 "GM004J3224UQ"
+#define LEN_T2254A "LEN T2254A"
 
 // cables vendor ID
 #define STIGER_HDMI  "0x20030001"
@@ -42,8 +48,10 @@
 #define PISEN_HDMI   "0x01030001"
 #define UNI_HDMI     "0x01030001"
 /* Started by AICoder, pid:ab0b1o54974c2ff147e40aff90c8770d1e817bf8 */
-#define UGREEN_EXT_80133    "0x93215000\n"
+#define UGREEN_EXT_CM179_80133    "0x93215000\n"
 /* Ended by AICoder, pid:ab0b1o54974c2ff147e40aff90c8770d1e817bf8 */
+#define BASEUS_EXT_BS_OH160       "0x94215000\n"
+#define UGREEN_EXT_CM498_15601    "0x93215000\n"
 
 #define FILTERED_MODE(nm, vdo, h, v, vf, rto) \
 	.name = nm, .dp_productvdo = vdo, .hdisplay = h, \

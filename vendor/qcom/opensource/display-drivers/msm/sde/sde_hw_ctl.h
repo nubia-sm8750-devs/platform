@@ -634,6 +634,19 @@ struct sde_hw_ctl_ops {
 	 * @cfg: Cesta flush config settings
 	 */
 	void (*cesta_flush)(struct sde_hw_ctl *ctx, struct sde_ctl_cesta_cfg *cfg);
+
+	/**
+	 * Set ctl_path INTF master
+	 * @ctx          : ctl path ctx pointer
+	 * @intf_master  : Master Interface idx
+	 */
+	int (*set_intf_master)(struct sde_hw_ctl *ctx, u32 intf_master);
+
+	/**
+	 * Get ctl_path INTF master
+	 * @ctx   : ctl path ctx pointer
+	 */
+	int (*get_intf_master)(struct sde_hw_ctl *ctx);
 };
 
 /**

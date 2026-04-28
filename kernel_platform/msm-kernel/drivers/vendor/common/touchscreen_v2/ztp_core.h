@@ -10,7 +10,7 @@
 extern int  ilitek_plat_dev_init(void);
 extern void  ilitek_plat_dev_exit(void);
 #endif
-#ifdef CONFIG_TOUCHSCREEN_HIMAX_COMMON
+#ifdef CONFIG_TOUCHSCREEN_HIMAX_HX83122A_LBP
 extern int  himax_common_init(void);
 extern void  himax_common_exit(void);
 #endif
@@ -52,12 +52,22 @@ extern int  cts_driver_init(void);
 extern void  cts_driver_exit(void);
 #endif
 
+#ifdef CONFIG_TOUCHSCREEN_FTS_3683G
+extern int  fts_ts_spi_init(void);
+extern void  fts_ts_spi_exit(void);
+#endif
+
 #ifdef CONFIG_TOUCHSCREEN_FTS_3681
 extern int  fts_ts_init(void);
 extern void  fts_ts_exit(void);
 #endif
 
 #ifdef CONFIG_TOUCHSCREEN_GOODIX_BRL_THP
+extern int  goodix_thp_spi_init(void);
+extern void  goodix_thp_spi_exit(void);
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_GOODIX_BRL_FOLD_THP
 extern int  goodix_thp_spi_init(void);
 extern void  goodix_thp_spi_exit(void);
 #endif
@@ -70,6 +80,16 @@ void  ufp_mac_exit(void);
 #ifdef CONFIG_TOUCHSCREEN_NT36XXX_TOUCH_36532W
 extern int32_t  nvt_driver_init(void);
 extern void nvt_driver_exit(void);
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_SYNA_TCM2_S3930T
+extern int  syna_dev_module_init(void);
+extern void  syna_dev_module_exit(void);
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_SYNA_TCM2_S3930T_LBP
+extern int  syna_dev_module_init(void);
+extern void  syna_dev_module_exit(void);
 #endif
 
 bool tp_ghost_check(void);

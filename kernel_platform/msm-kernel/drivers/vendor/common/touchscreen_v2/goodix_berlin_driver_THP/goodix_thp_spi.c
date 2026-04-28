@@ -386,27 +386,6 @@ static int goodix_thp_parse_dt(struct device_node *node,
 				sizeof(board_data->iovdd_name));
 	}
 
-	/*r = of_get_named_gpio(node, "iovdd-enable-gpio", 0);
-	if (r < 0) {
-		ts_err("invalid iovdd-enable-gpio in dt: %d", r);
-		return -EINVAL;
-	}
-	ts_info("get iovdd-enable-gpio[%d] from dt", r);
-	board_data->iovdd_enable_gpio = r;
-
-        memset(board_data->iovdd_name, 0, sizeof(board_data->iovdd_name));*/
-        r = of_property_read_string(node, "goodix,iovdd-name", &name_tmp);
-        if (!r) {
-                ts_info("avdd name form dt: %s", name_tmp);
-                if (strlen(name_tmp) < sizeof(board_data->iovdd_name))
-                        strncpy(board_data->iovdd_name,
-                                name_tmp, sizeof(board_data->iovdd_name));
-                else
-                        ts_info("invalied avdd name length: %ld > %ld",
-                                strlen(name_tmp),
-                                sizeof(board_data->iovdd_name));
-        }
-
         r = of_property_read_u32(node, "goodix,power-on-delay-us",
                                 &board_data->power_on_delay_us);
         if (!r) {
@@ -979,6 +958,7 @@ static int goodix_thp_get_version(struct thp_ts_device *tdev, u64 *version)
     return 0;
 }
 
+#if 0
 /* level: 1-HIGH 0-LOW */
 static int goodix_thp_set_fp_int_pin(struct thp_ts_device *dev, u8 level)
 {
@@ -991,6 +971,7 @@ static int goodix_thp_set_fp_int_pin(struct thp_ts_device *dev, u8 level)
         }
         return 0;
 }
+#endif
 
 /* hardware opeation funstions */
 static const struct goodix_thp_hw_ops hw_spi_ops = {
@@ -1001,7 +982,7 @@ static const struct goodix_thp_hw_ops hw_spi_ops = {
         .get_custom_info = goodix_thp_get_custom_info,
         .get_frame = goodix_thp_get_frame,
         .get_version = goodix_thp_get_version,
-        .set_fp_int_pin = goodix_thp_set_fp_int_pin,
+        //.set_fp_int_pin = goodix_thp_set_fp_int_pin,
 };
 
 static void goodix_pdev_release(struct device *dev)

@@ -268,6 +268,7 @@ struct  cam_sensor_query_cap {
 	__u32        ois_slot_id;
 	__u32        flash_slot_id;
 	__u32        csiphy_slot_id;
+	__u32        aperture_slot_id;
 } __attribute__((packed));
 
 /**

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/syscore_ops.h>
@@ -51,6 +51,10 @@ const char *migrate_type_names[] = {
 cpumask_t walt_cpus_taken_mask = { CPU_BITS_NONE };
 DEFINE_SPINLOCK(cpus_taken_lock);
 DEFINE_PER_CPU(int, cpus_taken_refcount);
+
+cpumask_t walt_enforce_high_irq_cpu_mask = { CPU_BITS_NONE };
+DEFINE_SPINLOCK(enforce_high_irq_cpu_lock);
+DEFINE_PER_CPU(int, enforce_high_irq_cpus_refcount);
 
 DEFINE_PER_CPU(struct walt_rq, walt_rq);
 unsigned int sysctl_sched_user_hint;
@@ -2879,8 +2883,7 @@ static void walt_task_dead(struct task_struct *p)
 	if (wts->low_latency & WALT_LOW_LATENCY_PIPELINE_BIT)
 		remove_pipeline(wts);
 
-	if (wts->low_latency & WALT_LOW_LATENCY_HEAVY_BIT)
-		remove_heavy(wts);
+	remove_heavy(wts);
 
 	if (p == pipeline_special_task)
 		remove_special_task();
@@ -4398,6 +4401,7 @@ static void walt_irq_work(struct irq_work *irq_work)
 	bool is_migration = false, is_asym_migration = false, is_pipeline_sync_migration = false;
 	u32 wakeup_ctr_sum = 0;
 	struct walt_sched_cluster *cluster;
+	bool need_assign_heavy = false;
 
 	if (irq_work == &walt_migration_irq_work)
 		is_migration = true;
@@ -4454,8 +4458,9 @@ static void walt_irq_work(struct irq_work *irq_work)
 
 	if (!is_migration) {
 		wrq = &per_cpu(walt_rq, cpu_of(this_rq()));
-		pipeline_check(wrq);
+		need_assign_heavy = pipeline_check(wrq);
 		core_ctl_check(wrq->window_start, wakeup_ctr_sum);
+		pipeline_rearrange(wrq, need_assign_heavy);
 		for_each_sched_cluster(cluster) {
 			update_smart_freq_legacy_reason_hyst_time(cluster);
 		}
@@ -5320,6 +5325,50 @@ cpumask_t walt_get_cpus_taken(void)
 }
 EXPORT_SYMBOL_GPL(walt_get_cpus_taken);
 
+int walt_set_enforce_high_irq_cpus(struct cpumask *set)
+{
+	unsigned long flags;
+	int cpu;
+
+	if (unlikely(walt_disabled))
+		return -EAGAIN;
+
+	spin_lock_irqsave(&enforce_high_irq_cpu_lock, flags);
+	for_each_cpu(cpu, set) {
+		per_cpu(enforce_high_irq_cpus_refcount, cpu)++;
+	}
+	cpumask_or(&walt_enforce_high_irq_cpu_mask, &walt_enforce_high_irq_cpu_mask, set);
+	spin_unlock_irqrestore(&enforce_high_irq_cpu_lock, flags);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(walt_set_enforce_high_irq_cpus);
+
+int walt_unset_enforce_high_irq_cpus(struct cpumask *unset)
+{
+	unsigned long flags;
+	int cpu;
+
+	if (unlikely(walt_disabled))
+		return -EAGAIN;
+
+	spin_lock_irqsave(&enforce_high_irq_cpu_lock, flags);
+	for_each_cpu(cpu, unset) {
+		if (per_cpu(enforce_high_irq_cpus_refcount, cpu) >= 1)
+			per_cpu(enforce_high_irq_cpus_refcount, cpu)--;
+		if (!per_cpu(enforce_high_irq_cpus_refcount, cpu))
+			cpumask_clear_cpu(cpu, &walt_enforce_high_irq_cpu_mask);
+	}
+	spin_unlock_irqrestore(&enforce_high_irq_cpu_lock, flags);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(walt_unset_enforce_high_irq_cpus);
+
+cpumask_t walt_get_enforce_high_irq_cpus(void)
+{
+	return walt_enforce_high_irq_cpu_mask;
+}
+EXPORT_SYMBOL_GPL(walt_get_enforce_high_irq_cpus);
+
 int walt_get_cpus_in_state1(struct cpumask *cpus)
 {
 	if (unlikely(walt_disabled))
@@ -5434,6 +5483,20 @@ static void walt_init_tg_pointers(void)
 	rcu_read_unlock();
 }
 
+static void walt_remove_cpufreq_efficiencies_available(void)
+{
+	struct cpufreq_policy *policy;
+	struct walt_sched_cluster *cluster;
+
+	for_each_sched_cluster(cluster) {
+		policy = cpufreq_cpu_get(cluster_first_cpu(cluster));
+		if (policy) {
+			policy->efficiencies_available = false;
+			cpufreq_cpu_put(policy);
+		}
+	}
+}
+
 static void walt_init(struct work_struct *work)
 {
 	static atomic_t already_inited = ATOMIC_INIT(0);
@@ -5474,6 +5537,7 @@ static void walt_init(struct work_struct *work)
 	}
 
 	walt_update_cluster_topology();
+	walt_remove_cpufreq_efficiencies_available();
 	walt_config();
 	walt_init_cycle_counter();
 

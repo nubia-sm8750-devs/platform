@@ -170,7 +170,6 @@ def define_sun():
         "drivers/soc/qcom/hung_task_enh.ko",
         "drivers/soc/qcom/llcc-qcom.ko",
         "drivers/soc/qcom/llcc_perfmon.ko",
-        "drivers/soc/qcom/llcc_heuristics.ko",
         "drivers/soc/qcom/mdt_loader.ko",
         "drivers/soc/qcom/mem-hooks.ko",
         "drivers/soc/qcom/mem-offline.ko",
@@ -184,9 +183,6 @@ def define_sun():
         "drivers/soc/qcom/mpam/cpu_mpam.ko",
         "drivers/soc/qcom/mpam/mpam.ko",
         "drivers/soc/qcom/mpam/platform_mpam.ko",
-        "drivers/soc/qcom/mpam/mpam_msc.ko",
-        "drivers/soc/qcom/mpam/mpam_msc_slc.ko",
-        "drivers/soc/qcom/mpam/slc_mpam.ko",
         "drivers/soc/qcom/msm_performance.ko",
         "drivers/soc/qcom/msm_show_epoch.ko",
         "drivers/soc/qcom/panel_event_notifier.ko",
@@ -315,6 +311,9 @@ def define_sun():
         "drivers/block/zram/zram.ko",
         "mm/zsmalloc.ko",
         "drivers/vendor/soc/qcom/ifas_inner/ifas_inner.ko",
+        "drivers/nubia/sensors_sensitivity/zte_sensor.ko",
+        "drivers/input/fingerprint/silead/fp_silead.ko",
+        "drivers/nfc/fm19511/fmtag.ko",
     ]
 
     _lotus_in_tree_modules = [
@@ -323,7 +322,6 @@ def define_sun():
        "drivers/media/rc/zte_ir.ko",
        "drivers/misc/haptic_hv/haptic.ko",
        "drivers/vendor/soc/qcom/zte_rpcom/zte_rpcom.ko",
-       "drivers/nubia/sensors_sensitivity/zte_sensor.ko",
     ]
 
     _aston_in_tree_modules = [
@@ -334,7 +332,74 @@ def define_sun():
        "drivers/nfc/st54j/st54jese.ko",
        "drivers/media/rc/zte_ir.ko",
        "drivers/vendor/common/fan/soc_fan.ko",
-       "drivers/nubia/sensors_sensitivity/zte_sensor.ko",
+    ]
+
+    _qvnettles_in_tree_modules = [
+       "drivers/nfc/st54j/st54jnfc.ko",
+       "drivers/nfc/st54j/st54jese.ko",
+       "drivers/media/rc/zte_ir.ko",
+       "drivers/misc/haptic_hv/haptic.ko",
+    ]
+
+    _qvpeony_in_tree_modules = [
+       "drivers/nfc/st54j/st54jnfc.ko",
+       "drivers/nfc/st54j/st54jese.ko",
+       "drivers/media/rc/zte_ir.ko",
+       "drivers/misc/haptic_hv/haptic.ko",
+       "drivers/vendor/soc/qcom/satel_hd/hd_satel.ko",
+    ]
+
+    _qvapollo_in_tree_modules = [
+       "drivers/nfc/st54j/st54jnfc.ko",
+       "drivers/nfc/st54j/st54jese.ko",
+       "drivers/media/rc/zte_ir.ko",
+       "drivers/misc/haptic_hv/haptic.ko",
+       "drivers/vendor/soc/qcom/satel_hd/hd_satel.ko",
+    ]
+
+    _qvcork_in_tree_modules = [
+       "drivers/misc/haptic_hv/haptic.ko",
+       "drivers/vendor/common/touchscreen_v2_2nd/zte_tpd_2nd.ko",
+       "drivers/vendor/soc/qcom/zte_rpcom/zte_rpcom.ko",
+       "drivers/nfc/st54j/st54jnfc.ko",
+       "drivers/nfc/st54j/st54jese.ko",
+       "drivers/media/rc/zte_ir.ko",
+       "drivers/input/hall/ah1898_hall.ko",
+       "drivers/misc/veb_a5spi_driver/veb_a5spi.ko",
+    ]
+
+    _qvburdock_in_tree_modules = [
+       "drivers/nfc/st54j/st54jnfc.ko",
+       "drivers/nfc/st54j/st54jese.ko",
+       "drivers/media/rc/zte_ir.ko",
+       "drivers/misc/haptic_hv/haptic.ko",
+       "drivers/vendor/soc/qcom/zte_rpcom/zte_rpcom.ko",
+    ]
+
+    _qvkino_in_tree_modules = [
+       "drivers/misc/haptic_86938_hv/haptic_86938.ko",
+       "drivers/leds/aw22xxx/zte_led.ko",
+       "drivers/input/hall/ah1898_hall.ko",
+       "drivers/input/hall2/ah1898_hall2.ko",
+       "drivers/vendor/common/fan/soc_fan.ko",
+       "drivers/vendor/common/nubia_hw_version/nubia_hw_version.ko",
+       "drivers/vendor/common/micropump/zte_pump.ko",
+    ]
+
+    _qvhodur_in_tree_modules = [
+      "drivers/misc/haptic_hv/haptic.ko",
+       "drivers/nfc/pn553/zte_nfc.ko",
+       "drivers/nfc/ese/zte_ese.ko",
+       "drivers/media/rc/zte_ir.ko",
+    ]
+
+    _qvhyacinth_in_tree_modules = [
+      "drivers/vendor/soc/qcom/zte_rpcom/zte_rpcom.ko",
+      "drivers/misc/haptic_hv/haptic.ko",
+      "drivers/nfc/st54j/st54jnfc.ko",
+      "drivers/nfc/st54j/st54jese.ko",
+      "drivers/media/rc/zte_ir.ko",
+      "drivers/misc/veb_a5spi_driver/veb_a5spi.ko",
     ]
 
     _zlog_in_tree_modules = [
@@ -376,7 +441,22 @@ def define_sun():
             mod_list += _lotus_in_tree_modules
         elif ZTE_BOARD_NAME == "aston":
             mod_list += _aston_in_tree_modules
-
+        elif ZTE_BOARD_NAME == "qvnettles":
+            mod_list += _qvnettles_in_tree_modules
+        elif ZTE_BOARD_NAME == "qvpeony":
+            mod_list += _qvpeony_in_tree_modules
+        elif ZTE_BOARD_NAME == "qvapollo":
+            mod_list += _qvapollo_in_tree_modules
+        elif ZTE_BOARD_NAME == "qvcork":
+            mod_list += _qvcork_in_tree_modules
+        elif ZTE_BOARD_NAME == "qvburdock":
+            mod_list += _qvburdock_in_tree_modules
+        elif ZTE_BOARD_NAME == "qvkino":
+            mod_list += _qvkino_in_tree_modules
+        elif ZTE_BOARD_NAME == "qvhodur":
+            mod_list += _qvhodur_in_tree_modules
+        elif ZTE_BOARD_NAME == "qvhyacinth":
+            mod_list += _qvhyacinth_in_tree_modules
         if ZTE_FEATURE_ZTE_LOG_EXCEPTION == "true":
             mod_list += _zlog_in_tree_modules
 

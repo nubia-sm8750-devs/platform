@@ -165,6 +165,7 @@ struct sde_encoder_virt_ops {
  * @cesta_ctrl_cfg:		Cesta control configuration
  * @idle_pc_enter:		Enter idle power collapse
  * @idle_pc_exit:		Exit idle power collapse
+ * @wait_for_vsync_on_autorefresh_busy:	Wait for vsync if autorefresh status busy
  */
 
 struct sde_encoder_phys_ops {
@@ -226,6 +227,7 @@ struct sde_encoder_phys_ops {
 			bool *req_flush, bool *req_scc);
 	void (*idle_pc_enter)(struct sde_encoder_phys *phys);
 	void (*idle_pc_exit)(struct sde_encoder_phys *phys);
+	void (*wait_for_vsync_on_autorefresh_busy)(struct sde_encoder_phys *phys_enc);
 };
 
 /**
@@ -736,6 +738,14 @@ int sde_encoder_helper_switch_vsync(struct drm_encoder *drm_enc,
  * @sde_enc: Pointer to sde encoder structure
  */
 u32 sde_encoder_helper_get_bw_update_time_lines(struct sde_encoder_virt *sde_enc);
+
+/**
+ * sde_encoder_helper_calc_vsync_count - calculates the vsync_count value
+ * @sde_enc: Pointer to drm encoder structure
+ * @vtotal: vtotal of the mode
+ * @vrefresh: vrefresh of the mode
+ */
+u32 sde_encoder_helper_calc_vsync_count(struct drm_encoder *drm_enc, u32 vtotal, u32 vrefresh);
 
 /**
  * sde_encoder_phys_has_role_master_dpu_master_intf - check if role of physical

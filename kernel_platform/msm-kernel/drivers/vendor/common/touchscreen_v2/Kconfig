@@ -1,10 +1,15 @@
 
 source "drivers/vendor/common/touchscreen_v2/focaltech_touch_3681/Kconfig"
+source "drivers/vendor/common/touchscreen_v2/focaltech_touch_3683g/Kconfig"
 source "drivers/vendor/common/touchscreen_v2/goodix_berlin_driver_v2/Kconfig"
 source "drivers/vendor/common/touchscreen_v2/goodix_berlin_driver_9916r/Kconfig"
 source "drivers/vendor/common/touchscreen_v2/goodix_berlin_driver_9966/Kconfig"
 source "drivers/vendor/common/touchscreen_v2/nt36xxx_touch_36532w/Kconfig"
 source "drivers/vendor/common/touchscreen_v2/goodix_berlin_driver_THP/Kconfig"
+source "drivers/vendor/common/touchscreen_v2/goodix_berlin_driver_FOLD_THP/Kconfig"
+source "drivers/vendor/common/touchscreen_v2/synaptics_touch_tcm2_THP/Kconfig"
+#source "drivers/vendor/common/touchscreen_v2/synaptics_tcm2/Kconfig"
+source "drivers/vendor/common/touchscreen_v2/hxchipset/Kconfig"
 
 config TOUCHSCREEN_BOARD_NAME
 	string "config board firmware folder"
@@ -52,6 +57,13 @@ config TOUCHSCREEN_IOVDD_GPIO_POWER
 	default n
 	help
 	  Say Y here if you want to use iovdd gpio power on
+	  If unsure, say N.
+
+config TOUCHSCREEN_AVDD_GPIO_POWER
+	bool "tp iovdd power on use gpio"
+	default n
+	help
+	  Say Y here if you want to use avdd gpio power on
 	  If unsure, say N.
 
 config TOUCHSCREEN_FOLD_PROJECT

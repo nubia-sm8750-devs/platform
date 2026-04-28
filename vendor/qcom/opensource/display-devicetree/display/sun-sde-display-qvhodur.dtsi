@@ -1,0 +1,156 @@
+#include "dsi-panel-zte-bf368-nt37900b-8p03-dsc-cmd.dtsi"
+#include "dsi-panel-zte-bf369-rm692k0-6p534-dsc-cmd.dtsi"
+#include "dsi-panel-nt35695b-truly-fhd-video.dtsi"
+
+&soc {
+    display_pri_panel_iovcc: display_pri_panel_iovcc {
+		compatible = "qti-regulator-fixed";
+		regulator-name = "display_pri_panel_iovcc";
+		gpio = <&tlmm 59 0>;
+		enable-active-high;
+		regulator-boot-on;
+	};
+	
+	display_pri_panel_vci: display_pri_panel_vci {
+		compatible = "qti-regulator-fixed";
+		regulator-name = "display_pri_panel_vci";
+		gpio = <&tlmm 58 0>;
+		enable-active-high;
+		regulator-boot-on;
+	};
+
+	display_pri_panel_dvdd: display_pri_panel_dvdd {
+		compatible = "qti-regulator-fixed";
+		regulator-name = "display_pri_panel_dvdd";
+		gpio = <&tlmm 73 0>;
+		enable-active-high;
+		regulator-boot-on;
+	};
+
+	display_pri_panel_i2c: display_pri_panel_i2c {
+		compatible = "qti-regulator-fixed";
+		regulator-name = "display_pri_panel_dvdd";
+		gpio = <&tlmm 214 0>;
+		enable-active-high;
+		regulator-boot-on;
+	};
+	
+	display_pri_panel_sel: display_pri_panel_sel {
+		compatible = "qti-regulator-fixed";
+		regulator-name = "display_pri_panel_sel";
+		gpio = <&tlmm 100 0>;
+		enable-active-high;
+		regulator-boot-on;
+	};
+
+	dsi_panel_pri_pwr_supply: dsi_panel_pri_pwr_supply {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		qcom,panel-supply-entry@0 {
+			reg = <0>;
+			qcom,supply-name = "privio";
+			qcom,supply-min-voltage = <1800000>;
+			qcom,supply-max-voltage = <1800000>;
+			qcom,supply-enable-load = <220000>;
+			qcom,supply-disable-load = <8000>;
+			qcom,supply-post-on-sleep = <20>;
+		};
+
+		qcom,panel-supply-entry@1 {
+			reg = <1>;
+			qcom,supply-name = "privci";
+			qcom,supply-min-voltage = <3000000>;
+			qcom,supply-max-voltage = <3000000>;
+			qcom,supply-enable-load = <260000>;
+			qcom,supply-disable-load = <100>;
+		};
+
+		qcom,panel-supply-entry@2 {
+			reg = <2>;
+			qcom,supply-name = "pridvdd";
+			qcom,supply-min-voltage = <1350000>;
+			qcom,supply-max-voltage = <1350000>;
+			qcom,supply-enable-load = <260000>;
+			qcom,supply-disable-load = <100>;
+		};
+
+		qcom,panel-supply-entry@3 {
+			reg = <3>;
+			qcom,supply-name = "prii2c";
+			qcom,supply-min-voltage = <1350000>;
+			qcom,supply-max-voltage = <1350000>;
+			qcom,supply-enable-load = <260000>;
+			qcom,supply-disable-load = <100>;
+		};
+	};
+	
+	dsi_panel_sec_pwr_supply: dsi_panel_sec_pwr_supply {
+		#address-cells = <1>;
+		#size-cells = <0>;
+  
+		qcom,panel-supply-entry@0 {
+			reg = <0>;
+			qcom,supply-name = "secsel";
+			qcom,supply-min-voltage = <1800000>;
+			qcom,supply-max-voltage = <1800000>;
+			qcom,supply-enable-load = <220000>;
+			qcom,supply-disable-load = <8000>;
+			qcom,supply-post-on-sleep = <20>;
+		};
+
+		qcom,panel-supply-entry@1 {
+			reg = <1>;
+			qcom,supply-name = "vddio";
+			qcom,supply-min-voltage = <1800000>;
+			qcom,supply-max-voltage = <1800000>;
+			qcom,supply-enable-load = <154000>;
+			qcom,supply-disable-load = <45000>;
+			qcom,supply-post-on-sleep = <2>;
+		};
+
+        qcom,panel-supply-entry@2 {
+			reg = <2>;
+			qcom,supply-name = "secdvdd";
+			qcom,supply-min-voltage = <1800000>;
+			qcom,supply-max-voltage = <1800000>;
+			qcom,supply-enable-load = <0>;
+			qcom,supply-disable-load = <0>;
+			qcom,supply-post-on-sleep = <20>;
+		};
+
+		qcom,panel-supply-entry@3 {
+			reg = <3>;
+			qcom,supply-name = "vci";
+			qcom,supply-min-voltage = <3000000>;
+			qcom,supply-max-voltage = <3000000>;
+			qcom,supply-enable-load = <10000>;
+			qcom,supply-disable-load = <300>;
+			qcom,supply-pre-off-sleep = <2>;
+			qcom,supply-post-off-sleep = <2>;
+			qcom,supply-post-on-sleep = <2>;
+		};
+	};
+};
+
+&sde_dsi {
+	privio-supply = <&display_pri_panel_iovcc>;
+	privci-supply = <&display_pri_panel_vci>;
+	pridvdd-supply = <&display_pri_panel_dvdd>;
+	prii2c-supply = <&display_pri_panel_i2c>;
+	secdvdd-supply = <&L8B>;
+	secsel-supply = <&display_pri_panel_sel>;
+};
+&sde_dsi1 {
+	privio-supply = <&display_pri_panel_iovcc>;
+	privci-supply = <&display_pri_panel_vci>;
+	pridvdd-supply = <&display_pri_panel_dvdd>;
+	prii2c-supply = <&display_pri_panel_i2c>;
+	secdvdd-supply = <&L8B>;
+	secsel-supply = <&display_pri_panel_sel>;
+	qcom,dsi-default-panel = <&dsi_bf369_rm692k0_6p534_dsc_cmd>;
+};
+
+&battery_charger {
+	qcom,display-panels = <&dsi_bf368_nt37900b_8p03_dsc_cmd>;
+};

@@ -68,8 +68,7 @@
 #include "cam_generated_h"
 #endif
 
-#include "cam_adj_aperture_dev.h"
-
+#include "cam_var_aperture_dev.h"
 char camera_banner[] = "Camera-Banner: (" CAMERA_COMPILE_BY "@"
 	CAMERA_COMPILE_HOST ") (" CAMERA_COMPILE_TIME ")";
 
@@ -130,7 +129,7 @@ static const struct camera_submodule_component camera_sensor[] = {
 	{&cam_eeprom_driver_init, &cam_eeprom_driver_exit},
 	{&cam_ois_driver_init, &cam_ois_driver_exit},
 	{&cam_flash_init_module, &cam_flash_exit_module},
-	{&cam_adj_aperture_driver_init, &cam_adj_aperture_driver_exit},
+	{&cam_var_aperture_driver_init, &cam_var_aperture_driver_exit},
 #endif
 };
 

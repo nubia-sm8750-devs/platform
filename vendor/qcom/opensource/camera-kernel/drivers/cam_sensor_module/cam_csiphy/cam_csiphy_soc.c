@@ -371,11 +371,6 @@ int32_t cam_csiphy_parse_dt_info(struct platform_device *pdev,
 		csiphy_dev->hw_version = CSIPHY_VERSION_V230;
 		csiphy_dev->is_divisor_32_comp = true;
 		csiphy_dev->clk_lane = 0;
-	} else if (of_device_is_compatible(soc_info->dev->of_node, "qcom,csiphy-v2.3.0_z70u_tele")) {
-		csiphy_dev->ctrl_reg = &ctrl_reg_2_3_0_z70u_tele;
-		csiphy_dev->hw_version = CSIPHY_VERSION_V230;
-		csiphy_dev->is_divisor_32_comp = true;
-		csiphy_dev->clk_lane = 0;
 	} else if (of_device_is_compatible(soc_info->dev->of_node, "qcom,csiphy-v2.3.0_z70u_main")) {
 		csiphy_dev->ctrl_reg = &ctrl_reg_2_3_0_z70u_main;
 		csiphy_dev->hw_version = CSIPHY_VERSION_V230;

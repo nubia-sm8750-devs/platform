@@ -35,6 +35,7 @@
 #define CAM_EEPROM_NAME    "cam-eeprom"
 #define CAM_OIS_NAME       "cam-ois"
 #define CAM_TPG_NAME       "cam-tpg"
+#define CAM_APERTURE_NAME  "cam-aperture"
 
 #define MAX_SYSTEM_PIPELINE_DELAY 2
 
@@ -94,6 +95,7 @@ enum sensor_sub_module {
 	SUB_MODULE_CSIPHY,
 	SUB_MODULE_OIS,
 	SUB_MODULE_EXT,
+	SUB_MODULE_APERTURE,
 	SUB_MODULE_MAX,
 };
 
@@ -214,6 +216,7 @@ enum cam_sensor_module_debugfs_device_type {
 	CAM_SENSOR_FLASH,
 	CAM_SENSOR_OIS,
 	CAM_SENSOR_DEVICE,
+	CAM_SENSOR_APERTURE,
 	CAM_SENSOR_MAX,
 };
 

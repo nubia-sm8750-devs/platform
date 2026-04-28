@@ -71,17 +71,12 @@ ddk_headers(
     includes = ["msm"]
 )
 
-ddk_headers(
-    name = "zte_disp",
-    hdrs = glob([
-      "msm/zte_disp/*.h",
-    ]),
-    includes = ["msm/zte_disp"]
-)
+#add by zte for disp_feature
+load(":targets/zte_disp.bzl", "get_zte_disp_hdr")
 
 ddk_headers(
     name = "display_drivers_headers",
-    hdrs = [ ":linux_includes", ":uapi_headers", ":msm_headers",":dp_headers",":nubia_dp_headers",":dsi_headers",":sde_headers",":rotator_headers",":zte_disp"]
+    hdrs = [ ":linux_includes", ":uapi_headers", ":msm_headers",":dp_headers",":nubia_dp_headers",":dsi_headers",":sde_headers",":rotator_headers"] + get_zte_disp_hdr()
 )
 
 load(":targets/sun.bzl", "define_sun")

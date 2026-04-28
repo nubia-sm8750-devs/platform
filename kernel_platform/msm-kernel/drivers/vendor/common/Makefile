@@ -6,6 +6,9 @@ obj-$(CONFIG_POWER_VENDOR_COMMON) += power/
 # obj-y += tfa9873/
 # obj-$(CONFIG_SND_SMARTPA_AW882XX) += aw882xx/
 obj-$(CONFIG_INPUT_TOUCHSCREEN) += touchscreen_v2/
+obj-$(CONFIG_INPUT_TOUCHSCREEN_2nd)	+= touchscreen_v2_2nd/
+
+obj-y   += micropump/
 
 #for zcard_det
 obj-y   += zcard_det/

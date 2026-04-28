@@ -29,7 +29,7 @@ int32_t cam_sensor_get_sub_module_index(struct device_node *of_node,
 	struct cam_sensor_board_info *sensor_info;
 
 	sensor_info = s_info;
-	
+
 	tof_enable = of_property_read_bool(of_node, "zte-tof-enable");
 
     if(tof_enable && tof_inited == false){
@@ -39,7 +39,6 @@ int32_t cam_sensor_get_sub_module_index(struct device_node *of_node,
 		tof_inited = true; 
 		/* add tof modules end*/
     }
-
 	for (i = 0; i < SUB_MODULE_MAX; i++)
 		sensor_info->subdev_id[i] = -1;
 
@@ -108,6 +107,15 @@ int32_t cam_sensor_get_sub_module_index(struct device_node *of_node,
 		CAM_ERR(CAM_SENSOR, "paring the dt node for csiphy rc %d", rc);
 	else
 		sensor_info->subdev_id[SUB_MODULE_CSIPHY] = val;
+
+	rc = of_property_read_u32(of_node, "aperture-sd-index", &val);
+	if (rc < 0)
+	{
+		CAM_ERR(CAM_SENSOR, "paring the dt node for  aperture rc %d", rc);
+		rc = 0;
+    }
+	else
+		sensor_info->subdev_id[SUB_MODULE_APERTURE] = val;
 
 	return rc;
 }

@@ -1,0 +1,17 @@
+#
+# micro pump driver configuration
+#
+choice
+	prompt "select a micro pump driver"
+
+config BOS1921_MICRO_PUMP
+	tristate "bos1921 micropump"
+    help
+        Say m here if you use bos1921 control micropump.
+
+config AW86320_MICRO_PUMP
+	tristate "aw86320 micropump"
+    help
+        Say m here if you use aw86320 control micropump.
+endchoice
+

@@ -99,5 +99,5 @@ ssize_t camera_open_zte_adj_aperture(struct cam_adj_aperture_ctrl_t *pa_ctrl);
 
 ssize_t camera_close_zte_adj_aperture(struct cam_adj_aperture_ctrl_t *pa_ctrl);
 void  camera_zte_aperture_init_kfifo(void);
-void  cam_zte_adj_aperture_thread_resources_close(struct cam_adj_aperture_ctrl_t *a_ctrl);
+void  aperture_thread_resources_close(struct cam_adj_aperture_ctrl_t *a_ctrl);
 #endif /* _CAM_ACTUATOR_CORE_H_ */

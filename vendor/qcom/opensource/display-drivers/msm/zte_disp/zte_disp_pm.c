@@ -58,6 +58,9 @@ int zte_dsi_display_set_power(struct drm_connector *connector,
         panel->disp_feature[ZTE_LCD_ACL_CTRL].mode = 0;
         panel->disp_feature[ZTE_LCD_DIM_CTRL].mode = 0;
         panel->disp_feature[ZTE_LCD_HBM_CTRL].mode = 0;
+    #ifdef CONFIG_DRM_ZTE_DISP_LTM
+        panel->disp_feature[ZTE_LCD_LTM_SENSOR_BL].mode = 0;
+    #endif
         panel->hbm_trigger = 0;
     }
 

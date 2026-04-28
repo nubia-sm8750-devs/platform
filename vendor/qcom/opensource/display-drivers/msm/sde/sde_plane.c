@@ -2757,6 +2757,11 @@ static int _sde_plane_validate_shared_crtc(struct sde_plane *psde,
 				SDE_ERROR_PLANE(psde, "pipe:%d used in cont-splash on crtc:%d\n",
 						psde->pipe,
 						splash_display->encoder->crtc->base.id);
+				SDE_ERROR("MSM_LCD check current->comm = %s\n",current->comm);
+				if (!strcmp(current->comm, "ztecharger")
+					|| !strcmp(current->comm, "zte_ftm")) {
+					return 0;
+				}
 				return -EINVAL;
 			}
 		}

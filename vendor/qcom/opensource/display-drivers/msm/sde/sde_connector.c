@@ -22,7 +22,7 @@
 #include <drm/drm_probe_helper.h>
 #include <linux/version.h>
 #include <shd_drm.h>
-#ifdef CONFIG_DRM_ZTE_DISP_FOD
+#ifdef CONFIG_DRM_ZTE_DISP
 #include "../zte_disp/zte_disp_layer.h"
 #endif
 #include "sde_trace.h"
@@ -337,7 +337,7 @@ static int sde_backlight_device_update_status(struct backlight_device *bd)
 	int bl_lvl;
 	int rc = 0;
 	struct sde_kms *sde_kms;
-	#ifdef CONFIG_DRM_ZTE_DISP
+	#if defined(CONFIG_DRM_ZTE_DISP) || defined(CONFIG_DRM_ZTE_DISP_QVCORK)
 	static int state = 0;
 	#endif
 
@@ -354,7 +354,7 @@ static int sde_backlight_device_update_status(struct backlight_device *bd)
 			(bd->props.state & BL_CORE_SUSPENDED))
 		brightness = 0;
 
-	#ifdef CONFIG_DRM_ZTE_DISP
+	#if defined(CONFIG_DRM_ZTE_DISP) || defined(CONFIG_DRM_ZTE_DISP_QVCORK)
 	if (state != bd->props.state && brightness == 0) {
 		state = bd->props.state;
 		if (!state) {
@@ -1045,8 +1045,11 @@ static int _sde_connector_update_bl_scale(struct sde_connector *c_conn)
 /* Started by AICoder, pid:x473epa249ge2d8140cf08d630adfd0043c4f4a5 */
 #ifdef CONFIG_DRM_ZTE_DISP_LTM
     // Define a 64-bit variable for temporary storage of brightness values.
-    u64 bl_temp;
-    u32 bl_ltm_temp;
+	u64 bl_temp;
+	u32 bl_ltm_temp;
+	static bool ltm_sensor_change = false;
+	static bool ltm_hdr_change = false;
+	uint64_t flags = 0;
 #endif
 /* Ended by AICoder, pid:x473epa249ge2d8140cf08d630adfd0043c4f4a5 */
 
@@ -1091,8 +1094,6 @@ static int _sde_connector_update_bl_scale(struct sde_connector *c_conn)
       bl_config->bl_scale_sv = (u32)(ZTE_BF237_NORMAL_MAX_LEVEL * MAX_SV_BL_SCALE_LEVEL / bl_temp);
     }
     /* Log the current backlight configuration */
-    SDE_INFO("msm_lcd ltm bl_scale=%u, templevel=%u, bl_temp=%llu, bl_ltm_temp=%u, bl_scale_sv=%u\n",
-             bl_config->bl_scale, bl_config->bl_level, bl_temp, bl_ltm_temp, bl_config->bl_scale_sv);
 #else
     /* Log the current backlight configuration without scaling */
     SDE_DEBUG("bl_scale = %u, bl_scale_sv = %u, bl_level = %u\n",
@@ -1100,9 +1101,42 @@ static int _sde_connector_update_bl_scale(struct sde_connector *c_conn)
               bl_config->bl_level);
 #endif
 /* Ended by AICoder, pid:n89439eb12yeda914a6c0a4d8048341de2e948b0 */
-	rc = c_conn->ops.set_backlight(&c_conn->base,
-			dsi_display, bl_config->bl_level);
 
+/* Started by AICoder, pid:c59a4n9239a77e9145280baee056f62ad9701003 */
+// Conditional compilation block for ZTE display LTM (Local Tone Mapping) feature
+#ifdef CONFIG_DRM_ZTE_DISP_LTM
+    if (dsi_display->panel->disp_feature[ZTE_LCD_LTM_SENSOR_BL].mode == 0) {
+/* Started by AICoder, pid:v29af6e6f874901140760bee60e16e05bd193da1 */
+	flags = sde_connector_get_property(c_conn->base.state, CONNECTOR_PROP_ZTE_LAYER);
+	SDE_INFO("msm_lcd ltm bl_scale=%u,hdr_flag=%d,%llx,config_bl_level=%u,bl_ltm_temp=%u,bl_scale_sv=%u\n", 
+		bl_config->bl_scale, ltm_hdr_change, flags, bl_config->bl_level, bl_ltm_temp, bl_config->bl_scale_sv);
+/* Started by AICoder, pid:7dcc5lc53fof18d148c309c000a05c1da6c29203 */
+// if the LTM sensor has not changed and the backlight level is not zero, special handling for HDR layer
+if (!ltm_sensor_change && bl_config->bl_level != 0) {
+    if (!panel_layer_contains_exhdr(flags) && !panel_layer_contains_hdrvideo(flags)) {
+        if (ltm_hdr_change) {
+            ltm_hdr_change = false;
+        } else {
+            rc = c_conn->ops.set_backlight(&c_conn->base, dsi_display, bl_config->bl_level);
+        }
+    } else {
+        ltm_hdr_change = true;
+    }
+}
+/* Ended by AICoder, pid:7dcc5lc53fof18d148c309c000a05c1da6c29203 */
+/* Ended by AICoder, pid:v29af6e6f874901140760bee60e16e05bd193da1 */
+        ltm_sensor_change = false;
+    } else if (!ltm_sensor_change) {
+        SDE_INFO("msm_lcd ltm bl_config_bl=%u,bl_ltm_temp=%u,bl_scale_sv=%u,ltm_sensor=%d\n", bl_config->bl_level,
+            bl_ltm_temp, bl_config->bl_scale_sv, dsi_display->panel->disp_feature[ZTE_LCD_LTM_SENSOR_BL].mode);
+        ltm_sensor_change = true;
+    }
+#else
+    // Set backlight directly if ZTE LTM feature is not enabled
+    rc = c_conn->ops.set_backlight(&c_conn->base,
+            dsi_display, bl_config->bl_level);
+#endif
+/* Ended by AICoder, pid:c59a4n9239a77e9145280baee056f62ad9701003 */
 	if (!rc)
 		sde_dimming_bl_notify(c_conn, bl_config);
 	c_conn->unset_bl_level = 0;
@@ -1350,10 +1384,12 @@ static int _sde_connector_update_dirty_properties(
 			break;
 		}
 	}
-
+    
+	#ifdef CONFIG_DRM_ZTE_DISP
 	if (last_dim != isdim) {
 		last_dim = isdim;
 	}
+	#endif
 
 	mutex_unlock(&c_conn->property_info.property_lock);
 
@@ -2484,7 +2520,6 @@ static int sde_connector_atomic_set_property(struct drm_connector *connector,
 	#endif
 	#ifdef CONFIG_DRM_ZTE_DISP
 	case CONNECTOR_PROP_ZTE_HDR_RATIO:
-		zte_layer_dim_coeff_report(c_conn, c_state, val);
 		msm_property_set_dirty(&c_conn->property_info, &c_state->property_state, idx);
 		break;
 	#endif
@@ -3534,7 +3569,7 @@ static void sde_connector_check_status_work(struct work_struct *work)
 	dev = conn->base.dev->dev;
 
 	if (!conn->ops.check_status || dev->power.is_suspended ||
-			(conn->lp_mode == SDE_MODE_DPMS_OFF)) {
+			(conn->lp_mode != SDE_MODE_DPMS_ON)) { //modify by zte for aod no esd
 		SDE_DEBUG("dpms mode: %d\n", conn->dpms_mode);
 		mutex_unlock(&conn->lock);
 		return;

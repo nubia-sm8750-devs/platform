@@ -80,6 +80,8 @@
 
 		qcom,mi2s-audio-intf = <1>;
                 qcom,sec-mi2s-gpios = <&cdc_sec_mi2s_gpios>;
+                /* Fix MBHC looseness leads to identification as Line-out */
+                qcom,msm-mbhc-hs-mic-max-threshold-mv = <2700>;
         };
 };
 
@@ -177,7 +179,7 @@
 		pinctrl-0 = <&gpio108_input_pull_up>;
 		f0_pre = < 1700 >;
 		mode = /bits/ 8 < 5 >;
-
+		f0_cali_percent = /bits/ 8 < 7 >;
 /******************************aw8692x*******************************/
 		aw8692x_max_bst_vol = /bits/ 8 < 0x7F >;
 		aw8692x_cont_drv1_lvl = /bits/ 8 < 0x7F >;
@@ -270,17 +272,17 @@
 			<&uim0_sw_default>, <&uim1_sw_default>,
 			<&tt_rf_sw_default>, <&tt_download_default>,
 			<&tt_lna_3v3_en_default>, <&tt_trx_1p8_en_default>;
-		tt_poweron = <&tlmm 125 GPIO_ACTIVE_LOW>;
-		tt_reset = <&tlmm 173 GPIO_ACTIVE_LOW>;
-		tt_download = <&tlmm 171 GPIO_ACTIVE_LOW>;
-		uim0_qc_on = <&tlmm 0 GPIO_ACTIVE_HIGH>;
-		uim1_qc_on = <&tlmm 100 GPIO_ACTIVE_HIGH>;
-		uim0_sw = <&tlmm 177 GPIO_ACTIVE_LOW>;
-		uim1_sw = <&tlmm 178 GPIO_ACTIVE_LOW>;
-		tt_rf_sw = <&tlmm 1 GPIO_ACTIVE_LOW>;
-		uim_hotplug = <&tlmm 66 GPIO_ACTIVE_LOW>;
-		tt_lna_3v3_en = <&tlmm 211 GPIO_ACTIVE_LOW>;
-		tt_trx_1p8_en = <&tlmm 212 GPIO_ACTIVE_HIGH>;
+		tt_poweron-gpios = <&tlmm 125 GPIO_ACTIVE_HIGH>;
+		tt_reset-gpios = <&tlmm 173 GPIO_ACTIVE_HIGH>;
+		tt_download-gpios = <&tlmm 171 GPIO_ACTIVE_HIGH>;
+		uim0_qc_on-gpios = <&tlmm 0 GPIO_ACTIVE_HIGH>;
+		uim1_qc_on-gpios = <&tlmm 100 GPIO_ACTIVE_HIGH>;
+		uim0_sw-gpios = <&tlmm 177 GPIO_ACTIVE_HIGH>;
+		uim1_sw-gpios = <&tlmm 178 GPIO_ACTIVE_HIGH>;
+		tt_rf_sw-gpios = <&tlmm 1 GPIO_ACTIVE_HIGH>;
+		uim_hotplug-gpios = <&tlmm 66 GPIO_ACTIVE_HIGH>;
+		tt_lna_3v3_en-gpios = <&tlmm 211 GPIO_ACTIVE_HIGH>;
+		tt_trx_1p8_en-gpios = <&tlmm 212 GPIO_ACTIVE_HIGH>;
 		status = "ok";
 	};
 
@@ -304,13 +306,31 @@
 			label = "shoot_key";
 			gpios = <&tlmm 95 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_KEY>; //0x01
-			linux,code = <KEY_F24>;  //194
+			linux,code = <KEY_CAMERA>;  //212
 			gpio-key,wakeup;
 			debounce-interval = <15>;
 			linux,can-disable;
 		};
 	};
 
+};
+
+&sde_dp {
+	qcom,hbr2-3-voltage-swing = <0x28 0x32 0x36 0x3a>,
+				<0x29 0x39 0x3f 0xff>,
+				<0x30 0x3f 0xff 0xff>,
+				<0x3f 0xff 0xff 0xff>;
+};
+
+&pmih010x_eusb2_repeater {
+	qcom,param-override-seq =
+		/* <value reg_offset> */
+		/* Adjust HS trasmit amplitude */
+		<0xc 0x51
+		/* Disconnect Threshold */
+		 0x4 0x53
+		/* Tx pre-emphasis tuning */
+		 0x7 0x57>;
 };
 
 &tlmm {

@@ -37,3 +37,6 @@ CONFIG_VENDOR_ZTE_IFAS_INNER=m
 
 #nubia usb
 CONFIG_NUBIA_USB=y
+
+#nubia dp
+CONFIG_NUBIA_DP=y

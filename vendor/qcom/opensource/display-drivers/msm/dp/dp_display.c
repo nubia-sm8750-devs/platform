@@ -1792,6 +1792,31 @@ static int dp_display_handle_disconnect(struct dp_display_private *dp, bool skip
 	return rc;
 }
 
+//+linx
+#ifdef CONFIG_NUBIA_DP
+static void clear_data(struct dp_display_private *dp){
+	if (edid_ctl) {
+		if (edid_ctl->simulate_hpd) {
+			edid_ctl->simulate_hpd = false;
+		} else {
+			dp->panel->mode_override = false;
+			memset(edid_ctl->name, 0, sizeof(edid_ctl->name));
+			memset(edid_ctl->dp_productvdo, 0,
+					sizeof(edid_ctl->dp_productvdo));
+			edid_ctl->cable_connected = false;
+			memset(edid_ctl->edid_modes, 0, EDID_MODES_SIZE);
+			memset(edid_ctl->sel_mode, 0,
+				sizeof(struct selected_edid_mode));
+		}
+	} else {
+		DP_WARN(": edid_ctl = NULL\n");
+	}
+	DP_INFO(": simulate_hpd = %d, cable_connected = %d\n",
+			edid_ctl->simulate_hpd, edid_ctl->cable_connected);
+}
+#endif
+//-linx
+
 static void dp_display_disconnect_sync(struct dp_display_private *dp)
 {
 	int disconnect_delay_ms;
@@ -1820,6 +1845,8 @@ static void dp_display_disconnect_sync(struct dp_display_private *dp)
 	disconnect_delay_ms = min_t(u32, dp->debug->disconnect_delay_ms,
 			(u32) MAX_DISCONNECT_DELAY_MS);
 #ifdef CONFIG_NUBIA_DP
+	clear_data(dp);
+
 	DP_INFO(": disconnect delay = %d ms\n", disconnect_delay_ms);
 #else
 	DP_DEBUG("disconnect delay = %d ms\n", disconnect_delay_ms);
@@ -1877,26 +1904,6 @@ static int dp_display_usbpd_disconnect_cb(struct device *dev)
 	dp_display_state_remove(DP_STATE_CONFIGURED);
 	mutex_unlock(&dp->session_lock);
 
-#ifdef CONFIG_NUBIA_DP
-	if (edid_ctl) {
-		if (edid_ctl->simulate_hpd) {
-			edid_ctl->simulate_hpd = false;
-		} else {
-			dp->panel->mode_override = false;
-			memset(edid_ctl->name, 0, sizeof(edid_ctl->name));
-			memset(edid_ctl->dp_productvdo, 0,
-					sizeof(edid_ctl->dp_productvdo));
-			edid_ctl->cable_connected = false;
-			memset(edid_ctl->edid_modes, 0, EDID_MODES_SIZE);
-			memset(edid_ctl->sel_mode, 0,
-				sizeof(struct selected_edid_mode));
-		}
-	} else {
-		DP_WARN(": edid_ctl = NULL\n");
-	}
-	DP_INFO(": simulate_hpd = %d, cable_connected = %d\n",
-			edid_ctl->simulate_hpd, edid_ctl->cable_connected);
-#endif
 	SDE_EVT32_EXTERNAL(SDE_EVTLOG_FUNC_EXIT, dp->state);
 end:
 	return rc;
@@ -3300,18 +3307,6 @@ static enum drm_mode_status dp_display_validate_mode(
 	debug = dp->debug;
 	if (!debug)
 		goto end;
-
-#ifdef CONFIG_NUBIA_DP
-	if (edid_ctl) {
-            if ((0 == strcmp(edid_ctl->name, "SmartGlasses")) || (0 == strcmp(edid_ctl->name, "PGlass")))
-            {
-                 dp_panel->mode_override = 0;
-                 DP_INFO("SmartGlasses 3D mode, set mode_override = 0\n");
-            }
-        } else {
-                DP_INFO("edid_ctl is NULL\n");
-        }
-#endif
 
 	dp_display->convert_to_dp_mode(dp_display, panel, mode, &dp_mode);
 

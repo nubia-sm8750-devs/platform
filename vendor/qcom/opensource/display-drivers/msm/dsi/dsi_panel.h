@@ -223,7 +223,7 @@ struct dsi_panel_ops {
 	int (*trigger_esd_attack)(struct dsi_panel *panel);
 };
 
-#ifdef CONFIG_DRM_ZTE_DISP
+#if defined(CONFIG_DRM_ZTE_DISP) || defined(CONFIG_DRM_ZTE_DISP_QVCORK)
 enum {
 	ZTE_LCD_HBM_CTRL = 0,
 	ZTE_LCD_COLOR_GAMUT_CTRL,
@@ -235,6 +235,9 @@ enum {
 	ZTE_LCD_DIM_CTRL,
 	ZTE_LCD_SET_BL,
 	ZTE_LCD_SET_SYNC_BL,
+	ZTE_LCD_LTM_SENSOR_BL,
+	ZTE_LCD_MIN_FPS,
+	ZTE_LCD_LOCAL_HBM_CTRL,
 	ZTE_LCD_MAX_CTRL
 };
 
@@ -255,7 +258,7 @@ struct dsi_read_config {
 	u8 rbuf[BUF_LEN_MAX];
 };
 #endif
-#ifdef CONFIG_DRM_ZTE_DISP_FOD
+#ifdef CONFIG_DRM_ZTE_DISP
 enum {
 	ZTE_LAYER_NONE = 0,
 	ZTE_LAYER_DIM = BIT(0),
@@ -314,6 +317,7 @@ struct dsi_panel {
 	bool skip_panel_off;
 	bool panel_initialized;
 	bool te_using_watchdog_timer;
+	bool disable_cesta_hw_sleep;
 	struct dsi_qsync_capabilities qsync_caps;
 	struct dsi_avr_capabilities avr_caps;
 	struct dsi_esync_capabilities esync_caps;
@@ -339,6 +343,14 @@ struct dsi_panel {
 
 	struct dsi_panel_ops panel_ops;
 
+#ifdef CONFIG_DRM_ZTE_DISP_QVCORK
+	struct zte_disp_feature *disp_feature;
+	u32 cur_bl;
+	bool last_dimen;
+	struct delayed_work dim_work;
+	struct workqueue_struct *dim_workq;
+	u32 set_dim;
+#endif
 #ifdef CONFIG_DRM_ZTE_DISP
 	/* zte define feature */
 	struct zte_disp_feature *disp_feature;
@@ -358,12 +370,21 @@ struct dsi_panel {
 	u32 set_dim;
 	ktime_t hbm_off_timestamp;
 #endif
-#ifdef CONFIG_DRM_ZTE_DISP_FOD
+#ifdef CONFIG_DRM_ZTE_DISP
 	u32 cur_bl;
 	uint64_t layer_flag;
 	u32 hbm_trigger;
 	struct completion tx_done_gate;
 	bool irq_rec_enable;
+	bool i2c_power_enabled;
+#endif
+#ifdef CONFIG_ZTE_LCD_ZLOG
+	struct zlog_client *zlog_lcd_client;
+#endif
+#ifdef CONFIG_DRM_ZTE_DISP_LTPO
+	u32 minfps_index1;
+	u32 minfps_index2;
+	u32 min_fps;
 #endif
 };
 
@@ -521,7 +542,7 @@ int dsi_panel_send_cmd(struct dsi_panel *panel,
 int dsi_panel_parse_freq_step_table(struct dsi_display_mode *mode,
 				struct dsi_parser_utils *utils);
 
-#ifdef CONFIG_DRM_ZTE_DISP
+#if defined(CONFIG_DRM_ZTE_DISP) || defined(CONFIG_DRM_ZTE_DISP_QVCORK)
 int zte_dsi_panel_tx_cmd_set(struct dsi_panel *panel,
 				enum dsi_cmd_set_type type);
 #endif

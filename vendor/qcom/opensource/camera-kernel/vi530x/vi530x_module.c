@@ -46,6 +46,10 @@
 #include "vi530x_firmware.h"
 #include "vi530x_api.h"
 #include <linux/pm_runtime.h>
+#include <linux/semaphore.h>
+#include "uapi/linux/sched/types.h"
+#include "linux/sched/types.h"
+#include <linux/cpumask.h>
 
 #define VI530X_IOCTL_PERIOD _IOW('p', 0x01, uint32_t)
 #define VI530X_IOCTL_XTALK_CALIB _IOR('p', 0x02, struct VI530X_XTALK_Calib_Data)
@@ -63,6 +67,15 @@
 static int xtalk_mark;
 static int offset_mark;
 
+static int tof_enable = 0;
+static  int tof_flag = 0;
+
+static VI530X_TOF   tof_ctl = {0};
+
+unsigned long long tof_i2c_open_count = 0 ;
+
+module_param(tof_i2c_open_count, ullong, 0644);
+
 static int32_t vi530x_io_init(struct  vi530x_data *data)
 {
     int rc = 0;
@@ -77,6 +90,7 @@ static int32_t vi530x_io_init(struct  vi530x_data *data)
             (data->pm_ctrl_client_enable)) {
             vi530x_dbgmsg("%s:%d: Calling get_sync",
             __func__, __LINE__);
+            tof_i2c_open_count++;
             rc = pm_runtime_get_sync(data->client->adapter->dev.parent);
             if (rc < 0) {
             vi530x_errmsg("Failed to get sync rc: %d", rc);
@@ -99,6 +113,7 @@ static int32_t vi530x_io_release(struct  vi530x_data *data)
         (data->pm_ctrl_client_enable)) {
             vi530x_dbgmsg("%s:%d: Calling put_sync",
                 __func__, __LINE__);
+                tof_i2c_open_count--;
                 pm_runtime_put_sync(data->client->adapter->dev.parent);
         }
 
@@ -194,6 +209,7 @@ static void vi530x_disable_irq(struct  vi530x_data *data)
 	{
 		data->intr_state = VI530X_INTR_DISABLED;
 		disable_irq(data->irq);
+        synchronize_irq(data->irq);
 	}
 }
 
@@ -203,7 +219,7 @@ static ssize_t vi530x_chip_enable_show(struct device *dev,
 	struct vi530x_data *data = dev_get_drvdata(dev);
 
 	if(NULL != data)
-		return scnprintf(buf, PAGE_SIZE, "%u\n", data->chip_enable);
+		return scnprintf(buf, PAGE_SIZE, "%u\n", tof_enable);
 
 	return -EINVAL;
 }
@@ -214,7 +230,7 @@ static ssize_t vi530x_chip_enable_store(struct device *dev,
 	struct vi530x_data *data = dev_get_drvdata(dev);
 	VI530X_Error Status = VI530X_ERROR_NONE;
 	unsigned int val = 0;
-
+    vi530x_infomsg("enabled  in !!\n");
 	if(NULL != data)
 	{
 		mutex_lock(&data->work_mutex);
@@ -231,22 +247,30 @@ static ssize_t vi530x_chip_enable_store(struct device *dev,
 		}
 		if(val == 1)
 		{
-			if(data->chip_enable == 0)
+			if(tof_enable == 0)
 			{
-				data->chip_enable = 1;
+				tof_enable = 1;
+                data->chip_enable = 1;
+#if  0
 				vi530x_enable_irq(data);
 				Status = vi530x_func_tbl->Power_ON(data);
+#endif
 				getnstimeofday(&data->start_ts);
+                vi530x_infomsg("tof_enable %d", tof_enable);
 			} else {
-				vi530x_errmsg("already enabled!!\n");
+				vi530x_infomsg("already enabled!!\n");
 			}
 		} else {
-			if(data->chip_enable == 1)
+			if(tof_enable == 1)
 			{
-				data->chip_enable = 0;
+				tof_enable = 0;
+                data->chip_enable = 0;
+#if  0
 				vi530x_disable_irq(data);
 				data->fwdl_status = 0;
 				Status = vi530x_func_tbl->Power_OFF(data);
+#endif
+                vi530x_infomsg("off !!\n");
 			}
 			else {
 				vi530x_errmsg("already disabled!!\n");
@@ -321,10 +345,7 @@ static ssize_t vi530x_chip_init_store(struct device *dev,
 		
 		if(val)
 		{
-			vi530x_io_init(data);
-			Status = vi530x_func_tbl->Chip_Init(data);
-			vi530x_io_release(data);
-			data->fwdl_status = 1;
+             vi530x_infomsg("chip_init");
 		} else {
 			mutex_unlock(&data->work_mutex);
 			return -EINVAL;
@@ -375,7 +396,27 @@ static ssize_t vi530x_period_store(struct device *dev,
 }
 
 static DEVICE_ATTR(period, 0664, vi530x_period_show, vi530x_period_store);
-static  int tof_flag = 0;
+
+
+void vi530x_resources_close(void)
+{
+#if  0
+    if(tof_flag&& tof_ctl.tof_dev)
+    {
+        vi530x_func_tbl->Stop_Continuous_Measure(tof_ctl.tof_dev);
+
+        tof_ctl.tof_dev->chip_enable = 0;
+        tof_enable = 0;
+        vi530x_disable_irq(tof_ctl.tof_dev);
+        tof_ctl.tof_dev->fwdl_status = 0;
+
+        vi530x_io_release(tof_ctl.tof_dev);
+        vi530x_func_tbl->Power_OFF(tof_ctl.tof_dev);
+        tof_flag = 0;
+        vi530x_errmsg("\n");
+    }
+#endif
+}
 
 static ssize_t vi530x_capture_store(struct device *dev,
 				struct device_attribute *attr, const char *buf, size_t count)
@@ -442,7 +483,6 @@ static ssize_t vi530x_xtalk_calib_store(struct device *dev,
 	if(NULL != data)
 	{
 		mutex_lock(&data->work_mutex);
-
 		if(sscanf(buf, "%u\n", &val) != 1)
 		{
 			mutex_unlock(&data->work_mutex);
@@ -525,7 +565,7 @@ static ssize_t vi530x_xtalk_data_read(struct file *filp,
 	void *src = (void *) &(data->XtalkData);
 
 	mutex_lock(&data->work_mutex);
-	if (!data->chip_enable) {
+	if (!tof_enable) {
 		vi530x_errmsg("can't set calib data while disable sensor\n");
 		mutex_unlock(&data->work_mutex);
 		return -EBUSY;
@@ -552,7 +592,7 @@ static ssize_t vi530x_xtalk_data_write(struct file *filp,
 
 	mutex_lock(&data->work_mutex);
 
-	if (!data->chip_enable) {
+	if (!tof_enable) {
 		rc = -EBUSY;
 		vi530x_errmsg("can't set calib data while disable sensor\n");
 		goto error;
@@ -573,6 +613,7 @@ static ssize_t vi530x_xtalk_data_write(struct file *filp,
 	rc = vi530x_func_tbl->Config_XTalk_Parameter(data);
 	if (rc) {
 		vi530x_errmsg("config xtalk calibration data fail %d", rc);
+        vi530x_io_release(data);
 		goto error;
 	}
 	vi530x_io_release(data);
@@ -600,7 +641,7 @@ static ssize_t vi530x_offset_data_read(struct file *filp,
 	void *src = (void *) &(data->OffsetData);
 
 	mutex_lock(&data->work_mutex);
-	if (!data->chip_enable) {
+	if (!tof_enable) {
 		vi530x_errmsg("can't set calib data while disable sensor\n");
 		mutex_unlock(&data->work_mutex);
 		return -EBUSY;
@@ -627,7 +668,7 @@ static ssize_t vi530x_offset_data_write(struct file *filp,
 	int rc = 0;
 
 	mutex_lock(&data->work_mutex);
-	if (!data->chip_enable) {
+	if (!tof_enable) {
 		rc = -EBUSY;
 		vi530x_errmsg("can't set calib data while disable sensor\n");
 		goto error;
@@ -706,7 +747,7 @@ static irqreturn_t vi530x_irq_handler(int vec, void *info)
 				vi530x_errmsg("%d : Status = %d\n" , __LINE__, Status);
 		}
 
-		if(!xtalk_mark && !offset_mark)
+		if(!xtalk_mark && !offset_mark && !tof_ctl.Status)
 		{
 			Status = vi530x_func_tbl->Get_Measure_Data(data);
 			if(Status != VI530X_ERROR_NONE)
@@ -925,6 +966,7 @@ static long vi530x_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return rc;
 }
 
+
 static int vi530x_release(struct inode *inode, struct file *file)
 {
 	vi530x_errmsg("release!\n");
@@ -943,6 +985,103 @@ static const struct file_operations vi530x_fops = {
 	.release = vi530x_release,
 };
 
+
+int  camera_zte_tof_thread(void *data)
+{
+     struct sched_param param = { .sched_priority = (MAX_RT_PRIO - 1)/2};
+      cpumask_var_t mask;
+
+    cpumask_clear(mask);
+    cpumask_set_cpu(7, mask);
+    set_cpus_allowed_ptr(current, mask);
+    sched_setscheduler(current, SCHED_FIFO, &param);
+    free_cpumask_var(mask);
+
+    while(!down_interruptible(&tof_ctl.tofsem))
+    {
+        if(kthread_should_stop())
+        {
+            vi530x_infomsg(" down  end  out \n");
+            break;
+        }
+        mutex_lock(&tof_ctl.tof_dev->work_mutex);
+        vi530x_io_init(tof_ctl.tof_dev);
+        vi530x_infomsg(" down \n");
+        tof_ctl.Status = vi530x_func_tbl->Chip_Init(tof_ctl.tof_dev);
+        tof_ctl.tof_dev->fwdl_status = 1;
+        vi530x_io_release(tof_ctl.tof_dev);
+        vi530x_infomsg(" down  end \n");
+        mutex_unlock(&tof_ctl.tof_dev->work_mutex);
+    }
+
+    return  0;
+}
+
+static int vi530x_tof_open(struct inode *inode, struct file *file)
+{
+    struct vi530x_data *data = tof_ctl.tof_dev;
+
+        tof_ctl.Status = VI530X_ERROR_NONE;
+        vi530x_io_init(tof_ctl.tof_dev);
+        if(tof_enable == 0)
+        {
+            if(tof_ctl.tof_thread == NULL)
+            {
+                tof_ctl.tof_thread = kthread_run(camera_zte_tof_thread, data, "zte_tof");
+            }
+                tof_enable = 1;
+                data->chip_enable = 1;
+                vi530x_enable_irq(data);
+                vi530x_func_tbl->Power_ON(data);
+                getnstimeofday(&data->start_ts);
+                up(&tof_ctl.tofsem);
+        }
+
+        vi530x_io_release(tof_ctl.tof_dev);
+    return 0;
+}
+
+
+static int vi530x_tof_release(struct inode *inode, struct file *file)
+{
+    struct vi530x_data *data = tof_ctl.tof_dev;
+    vi530x_infomsg("release!\n");
+
+    if(tof_ctl.tof_thread)
+    {
+        kthread_stop(tof_ctl.tof_thread);
+        tof_ctl.tof_thread = NULL;
+    }
+
+    if(tof_flag&& tof_ctl.tof_dev)
+    {
+        vi530x_func_tbl->Stop_Continuous_Measure(tof_ctl.tof_dev);
+        vi530x_disable_irq(data);
+    }else
+    {
+        vi530x_io_init(tof_ctl.tof_dev);
+        vi530x_disable_irq(data);
+    }
+
+    tof_enable = 0;
+    data->chip_enable = 0;
+    data->fwdl_status = 0;
+    tof_flag = 0;
+    vi530x_io_release(tof_ctl.tof_dev);
+
+    vi530x_func_tbl->Power_OFF(data);
+    tof_ctl.Status = VI530X_ERROR_NONE;
+
+    return 0;
+}
+
+static const struct file_operations  vi530x_tof_fops = {
+    .owner = THIS_MODULE,
+    .unlocked_ioctl = NULL,
+    .open = vi530x_tof_open,
+    .release = vi530x_tof_release,
+};
+
 static int vi530x_parse_dt(struct device_node *np, struct  vi530x_data *data)
 {
 
@@ -951,6 +1090,9 @@ static int vi530x_parse_dt(struct device_node *np, struct  vi530x_data *data)
 
    vi530x_sensor_utils_parse_pm_ctrl_flag(np, data);
 
+#ifdef CONFIG_TOF_VDIG_SUPPLY
+    data->power=regulator_get(data->dev,"vi530x,vdig");
+#else
 	data->pwren_gpio = of_get_named_gpio(np, "vi530x,pwren-gpio", 0);
 	if(data->pwren_gpio < 0)
 	{
@@ -958,6 +1100,7 @@ static int vi530x_parse_dt(struct device_node *np, struct  vi530x_data *data)
 		return -ENODEV;
 	}
 	vi530x_infomsg("INT GPIO: %d\n", data->pwren_gpio);
+#endif
 
 	data->irq_gpio = of_get_named_gpio(np, "vi530x,irq-gpio", 0);
 	if(data->irq_gpio < 0)
@@ -989,12 +1132,21 @@ static int vi530x_setup(struct  vi530x_data *data)
 	if (!data)
 		return -EINVAL;
 
-	if (!gpio_is_valid(data->irq_gpio) || !gpio_is_valid(data->xshut_gpio) || !gpio_is_valid(data->pwren_gpio))
+#ifdef CONFIG_TOF_VDIG_SUPPLY
+	if (!gpio_is_valid(data->irq_gpio) || !gpio_is_valid(data->xshut_gpio))    //check irq xshut gpio
+		return -ENODEV;
+
+	gpio_request(data->xshut_gpio, "vi530x xshut gpio");
+	gpio_request(data->irq_gpio, "vi530x irq gpio");
+#else
+	if (!gpio_is_valid(data->irq_gpio) || !gpio_is_valid(data->xshut_gpio) || !gpio_is_valid(data->pwren_gpio))//check irq xshut and pwren gpio
 		return -ENODEV;
 
 	gpio_request(data->pwren_gpio, "vi530x pwren gpio");
 	gpio_request(data->xshut_gpio, "vi530x xshut gpio");
 	gpio_request(data->irq_gpio, "vi530x irq gpio");
+#endif
+
 	gpio_direction_input(data->irq_gpio);
 	irq = gpio_to_irq(data->irq_gpio);
 	if(irq<0)
@@ -1076,6 +1228,20 @@ static int vi530x_setup(struct  vi530x_data *data)
 		rc = -ENOMEM;
 		goto misc_register_err;
 	}
+
+    data->subtofdev.minor = MISC_DYNAMIC_MINOR;
+    data->subtofdev.name = "v4l-subdev_tof";
+    data->subtofdev.fops = &vi530x_tof_fops;
+    if (misc_register(&data->subtofdev) != 0)
+    {
+        vi530x_errmsg("Could not register misc. dev for VI530X Sensor\n");
+        rc = -ENOMEM;
+        goto misc_register_err;
+    }
+
+    sema_init(&tof_ctl.tofsem, 0);
+    tof_ctl.Status = VI530X_ERROR_NONE;
+
 	data->period = 30;
 	data->xtalk_config = 0;
 	data->offset_config = 0;
@@ -1102,6 +1268,12 @@ exit_free_irq:
 exit_free_gpio:
 	gpio_free(data->xshut_gpio);
 	gpio_free(data->irq_gpio);
+
+    if(tof_ctl.tof_thread)
+    {
+        kthread_stop(tof_ctl.tof_thread);
+        tof_ctl.tof_thread = NULL;
+    }
 	return rc;
 }
 
@@ -1132,19 +1304,22 @@ static int vi530x_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, vi530x_data);
 	mutex_init(&vi530x_data->work_mutex);
 	ret = vi530x_parse_dt(node, vi530x_data);
-	vi530x_io_init(vi530x_data);
 
 	if(ret) {
 		vi530x_errmsg("VI530X Parse DT Failed\n");
 		goto exit_error;
 	}
+	vi530x_io_init(vi530x_data);
 	ret = vi530x_setup(vi530x_data);
 	if(ret) {
 		vi530x_errmsg("VI530X Setup Failed\n");
 		goto exit_error;
 	}
 	vi530x_io_release(vi530x_data);
-
+    if(vi530x_data)
+    {
+        tof_ctl.tof_dev = vi530x_data;
+    }
 	return 0;
 
 exit_error:

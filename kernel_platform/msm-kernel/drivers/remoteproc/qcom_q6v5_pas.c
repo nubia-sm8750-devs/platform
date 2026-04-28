@@ -321,7 +321,8 @@ static void adsp_pds_disable(struct qcom_adsp *adsp, struct device **pds,
 
 static int adsp_shutdown_poll_decrypt(struct qcom_adsp *adsp)
 {
-	unsigned int retry_num = 50;
+	// zte change timeout from 50 to 150 to avoid panic when 8750 shutdown slowly during early bootup
+	unsigned int retry_num = 150;
 	int ret;
 
 	do {

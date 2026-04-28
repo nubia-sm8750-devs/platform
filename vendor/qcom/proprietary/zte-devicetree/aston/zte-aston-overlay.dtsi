@@ -71,6 +71,8 @@
 		qcom,msm-mbhc-usbc-audio-supported = <0>;
 		qcom,msm-mbhc-hphl-swh = <1>;
 		qcom,msm-mbhc-gnd-swh = <1>;
+                /* Fix MBHC looseness leads to identification as Line-out */
+                qcom,msm-mbhc-hs-mic-max-threshold-mv = <2700>;
         };
 };
 
@@ -128,6 +130,7 @@
 		cfg_base_en = <1 1 1 1 0 0 0 0 1 1 1 1 1 1 1>;
 		/*steady lighting up,breath,flashing,flow,ripple,echo,hopping,fast flashing,follows the audio,two flashing*/
 		cfg_modex_count = <14 14 14 7 7 7 7 14 15 7>;
+		touch_modex_count = <14 14 14 7 7 7 7 14 15 7>;
 		fan_modex_count = <16 16 16 16 16>;
 		aw22xxx,led {
 			aw22xxx,name = "aw22xxx_led";
@@ -403,7 +406,7 @@
 		pinctrl-0 = <&gpio177_input_pull_up>;
 		f0_pre = < 1700 >;
 		mode = /bits/ 8 < 5 >;
-
+		f0_cali_percent = /bits/ 8 < 7 >;
 /******************************aw8692x*******************************/
 		aw8692x_max_bst_vol = /bits/ 8 < 0x7F >;
 		aw8692x_cont_drv1_lvl = /bits/ 8 < 0x7F >;

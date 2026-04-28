@@ -78,6 +78,7 @@
 #define MAX_OEM_MSG_SIZE		256
 
 #define UPDATE_SOC_WORK_TIME_MS		10000
+#define EVENT_STRING_LENGTH 64
 
 #if 0  //todo wait for merge by boot
 extern int socinfo_get_charger_flag(void);
@@ -86,13 +87,13 @@ extern int socinfo_get_charger_flag(void);
 u32 array_100w[20] = {
 //		  39-40	   40-41    41-42    42-43     43-44	44-45	  	 45-47	  47-55
         10000000, 9000000, 8000000, 6000000, 5000000, 4000000, 3000000, 2000000, 1500000, 1000000, //lcd off
-        10000000, 7000000, 3500000, 1500000, 800000,  600000,  400000,  300000,  200000,   0,  //lcd on
+        10000000, 7000000, 6000000, 5000000, 4000000, 3000000, 1000000,  800000, 800000,   0,  //lcd on
 //	1          2         3       4        5        6        7        8         9        10
 };
 u32 array_65w[20] = {
 //		 39-40	  40-41	   41-42    42-43    43-44    44-45		45-47	  47-55
         6500000, 6000000, 5800000, 5300000, 5000000, 4000000, 3000000, 2000000, 1500000, 1000000,//lcd off
-        6500000, 5000000, 3500000, 1500000, 800000,  600000,  400000,  300000,  200000,   0,//lcd on
+        6500000, 5000000, 4000000, 3500000, 3000000, 2000000, 1000000, 800000,  800000,   0,//lcd on
 };
 #endif
 enum psy_type {
@@ -153,6 +154,21 @@ enum battery_property_id {
 	BATT_SMB139X_TEMP1,
 	BATT_SMB139X_TEMP2,
 	BATT_BATTERY_CYCLE,
+	BATT_SKIN_TEMP,
+#endif
+#ifdef ZTE_CHARGER_1S2P_BATTERY
+	BATT_1S2P_SCCHIP_STATE,//0 -both sc7603 OK, 1-master sc7603 wrong, 2- slave sc7603 wrong, 3 both wrong
+	BATT_1S2P_SOC1,
+	BATT_1S2P_SOC2,
+	BATT_1S2P_VBATT1,
+	BATT_1S2P_VBATT2,
+	BATT_1S2P_IBATT1,
+	BATT_1S2P_IBATT2,
+	BATT_1S2P_TBATT1,
+	BATT_1S2P_TBATT2,
+#endif
+#ifdef ZTE_FEATURE_CHARGER_USB_THERMAL_SOFTBANK
+	BATT_USB_THERM,
 #endif
 	BATT_PROP_MAX,
 };
@@ -364,6 +380,7 @@ struct battery_chg_dev {
 	u32				recharge_soc;
 	int				charge_mode;
 	u32				adsp_debug;
+	int				skin_temp;
 #endif
 	bool				ship_mode_immediate;
 	bool				debug_battery_detected;
@@ -388,6 +405,11 @@ struct battery_chg_dev {
 	u32				healthd_usb_prop_masks;
 	u32				ssoc_full;
 	u32				rsoc_full;
+#endif
+#ifdef ZTE_FEATURE_CHARGER_USB_THERMAL_SOFTBANK
+	u32				usb_therm;
+	bool			usb_hot_state;
+	struct platform_device *uevent_typec_thermal_device;
 #endif
 	bool				notify_en;
 	bool				error_prop;
@@ -1019,7 +1041,36 @@ static void battery_chg_update_healthd_prop(struct battery_chg_dev *bcdev)
 		}
 	}
 }
+#ifdef ZTE_FEATURE_CHARGER_USB_THERMAL_SOFTBANK
+static void check_usb_thermal(struct battery_chg_dev *bcdev)
+{
+	struct psy_state *pst = &bcdev->psy_list[PSY_TYPE_BATTERY];
+	char event_string[EVENT_STRING_LENGTH];
+	char *envp[2] = { event_string, NULL };
+	int rc;
 
+	rc = read_property_id(bcdev, pst, BATT_USB_THERM);
+	if (rc < 0) {
+		pr_err("Failed to read BATT_USB_THERM, rc=%d\n", rc);
+		return;
+	}
+	if (!bcdev->uevent_typec_thermal_device) {
+		pr_err("usb_thermal uevent_typec_thermal_device is null");
+		return;
+	}
+	if (pst->prop[BATT_USB_THERM] >= 70 && bcdev->usb_hot_state == false) {
+		pr_info("BATT_USB_THERM=%d, typec_status=HOT\n", pst->prop[BATT_USB_THERM]);
+		snprintf(event_string, EVENT_STRING_LENGTH, "typec_status=HOT");
+		kobject_uevent_env(&bcdev->uevent_typec_thermal_device->dev.kobj, KOBJ_CHANGE, envp);
+		bcdev->usb_hot_state = true;
+	} else if (pst->prop[BATT_USB_THERM] < 65) {
+		pr_info("BATT_USB_THERM=%d, typec_status=NORMAL\n", pst->prop[BATT_USB_THERM]);
+		snprintf(event_string, EVENT_STRING_LENGTH, "typec_status=NORMAL");
+		kobject_uevent_env(&bcdev->uevent_typec_thermal_device->dev.kobj, KOBJ_CHANGE, envp);
+		bcdev->usb_hot_state = false;
+	}
+}
+#endif
 #define FULL_SOC							10000
 static void battery_chg_update_prop_work(struct work_struct *work)
 {
@@ -1041,7 +1092,9 @@ static void battery_chg_update_prop_work(struct work_struct *work)
 	read_property_id(bcdev, battery_pst, BATT_CURR_NOW);
 
 	battery_chg_update_healthd_prop(bcdev);
-
+#ifdef ZTE_FEATURE_CHARGER_USB_THERMAL_SOFTBANK
+	check_usb_thermal(bcdev);
+#endif
 	oem_charger_type = usb_pst->prop[USB_OEM_CHARGER_TYPE];
 	online = usb_pst->prop[USB_ONLINE];
 	battery_status = battery_pst->prop[BATT_STATUS];
@@ -1088,7 +1141,6 @@ update_last_status:
 }
 
 
-#define EVENT_STRING_LENGTH 64
 static void send_capacity_event(struct battery_chg_dev *bcdev, int fast_capacity)
 {
 	char event_string[EVENT_STRING_LENGTH];
@@ -1972,15 +2024,7 @@ static int battery_psy_set_charge_current(struct battery_chg_dev *bcdev,
 		return -EINVAL;
 
 	bcdev->curr_thermal_level = val;
-
-	if (bcdev->thermal_fcc_step == 0)
-		fcc_ua = bcdev->thermal_levels[val];
-	else{
-//		fcc_ua = bcdev->psy_list[PSY_TYPE_BATTERY].prop[BATT_CHG_CTRL_LIM_MAX]
-//				- (bcdev->thermal_fcc_step * val);
-		fcc_ua = battery_get_fcc_by_thermal_level(bcdev, val);
-	}
-
+	fcc_ua = battery_get_fcc_by_thermal_level(bcdev, val);
 	prev_fcc_ua = bcdev->thermal_fcc_ua;
 	bcdev->thermal_fcc_ua = fcc_ua;
 	pr_info("battery_psy_set_charge_current thermal level=%d,fcc=%d\n", val, fcc_ua);
@@ -3627,6 +3671,208 @@ static ssize_t battery_cycle_show(const struct class *c, const struct class_attr
 }
 static CLASS_ATTR_RW(battery_cycle);
 
+static ssize_t skin_temp_store(const struct class *c, const struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+	struct psy_state *pst = &bcdev->psy_list[PSY_TYPE_BATTERY];
+	int rc = 0;
+	u32 ucount = 0;
+
+	if (kstrtou32(buf, 10, &ucount))
+		return -EINVAL;
+	pr_info("store skin_temp=%d\n", ucount);
+	rc = write_property_id(bcdev, pst, BATT_SKIN_TEMP, ucount);
+
+	return count;
+}
+static ssize_t skin_temp_show(const struct class *c, const struct class_attribute *attr,
+			char *buf)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+	struct psy_state *pst = &bcdev->psy_list[PSY_TYPE_BATTERY];
+	int rc;
+
+	rc = read_property_id(bcdev, pst, BATT_SKIN_TEMP);
+	if (rc < 0)
+		return rc;
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", pst->prop[BATT_SKIN_TEMP]);
+}
+static CLASS_ATTR_RW(skin_temp);
+
+#ifdef ZTE_CHARGER_1S2P_BATTERY
+static ssize_t batt_1s2p_scchip_state_show(const struct class *c, const struct class_attribute *attr,
+			char *buf)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+	struct psy_state *pst = &bcdev->psy_list[PSY_TYPE_BATTERY];
+	int rc;
+
+	rc = read_property_id(bcdev, pst, BATT_1S2P_SCCHIP_STATE);
+	if (rc < 0)
+		return rc;
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", pst->prop[BATT_1S2P_SCCHIP_STATE]);
+}
+static CLASS_ATTR_RO(batt_1s2p_scchip_state);
+static ssize_t batt_1s2p_soc1_show(const struct class *c, const struct class_attribute *attr,
+			char *buf)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+	struct psy_state *pst = &bcdev->psy_list[PSY_TYPE_BATTERY];
+	int rc;
+
+	rc = read_property_id(bcdev, pst, BATT_1S2P_SOC1);
+	if (rc < 0)
+		return rc;
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", pst->prop[BATT_1S2P_SOC1]);
+}
+static CLASS_ATTR_RO(batt_1s2p_soc1);
+static ssize_t batt_1s2p_soc2_show(const struct class *c, const struct class_attribute *attr,
+			char *buf)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+	struct psy_state *pst = &bcdev->psy_list[PSY_TYPE_BATTERY];
+	int rc;
+
+	rc = read_property_id(bcdev, pst, BATT_1S2P_SOC2);
+	if (rc < 0)
+		return rc;
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", pst->prop[BATT_1S2P_SOC2]);
+}
+static CLASS_ATTR_RO(batt_1s2p_soc2);
+static ssize_t batt_1s2p_vbatt1_show(const struct class *c, const struct class_attribute *attr,
+			char *buf)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+	struct psy_state *pst = &bcdev->psy_list[PSY_TYPE_BATTERY];
+	int rc;
+
+	rc = read_property_id(bcdev, pst, BATT_1S2P_VBATT1);
+	if (rc < 0)
+		return rc;
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", pst->prop[BATT_1S2P_VBATT1]);
+}
+static CLASS_ATTR_RO(batt_1s2p_vbatt1);
+static ssize_t batt_1s2p_vbatt2_show(const struct class *c, const struct class_attribute *attr,
+			char *buf)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+	struct psy_state *pst = &bcdev->psy_list[PSY_TYPE_BATTERY];
+	int rc;
+
+	rc = read_property_id(bcdev, pst, BATT_1S2P_VBATT2);
+	if (rc < 0)
+		return rc;
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", pst->prop[BATT_1S2P_VBATT2]);
+}
+static CLASS_ATTR_RO(batt_1s2p_vbatt2);
+static ssize_t batt_1s2p_ibatt1_show(const struct class *c, const struct class_attribute *attr,
+			char *buf)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+	struct psy_state *pst = &bcdev->psy_list[PSY_TYPE_BATTERY];
+	int rc;
+
+	rc = read_property_id(bcdev, pst, BATT_1S2P_IBATT1);
+	if (rc < 0)
+		return rc;
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", pst->prop[BATT_1S2P_IBATT1]);
+}
+static CLASS_ATTR_RO(batt_1s2p_ibatt1);
+static ssize_t batt_1s2p_ibatt2_show(const struct class *c, const struct class_attribute *attr,
+			char *buf)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+	struct psy_state *pst = &bcdev->psy_list[PSY_TYPE_BATTERY];
+	int rc;
+
+	rc = read_property_id(bcdev, pst, BATT_1S2P_IBATT2);
+	if (rc < 0)
+		return rc;
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", pst->prop[BATT_1S2P_IBATT2]);
+}
+static CLASS_ATTR_RO(batt_1s2p_ibatt2);
+static ssize_t batt_1s2p_tbatt1_show(const struct class *c, const struct class_attribute *attr,
+			char *buf)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+	struct psy_state *pst = &bcdev->psy_list[PSY_TYPE_BATTERY];
+	int rc;
+
+	rc = read_property_id(bcdev, pst, BATT_1S2P_TBATT1);
+	if (rc < 0)
+		return rc;
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", pst->prop[BATT_1S2P_TBATT1]);
+}
+static CLASS_ATTR_RO(batt_1s2p_tbatt1);
+static ssize_t batt_1s2p_tbatt2_show(const struct class *c, const struct class_attribute *attr,
+			char *buf)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+	struct psy_state *pst = &bcdev->psy_list[PSY_TYPE_BATTERY];
+	int rc;
+
+	rc = read_property_id(bcdev, pst, BATT_1S2P_TBATT2);
+	if (rc < 0)
+		return rc;
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", pst->prop[BATT_1S2P_TBATT2]);
+}
+static CLASS_ATTR_RO(batt_1s2p_tbatt2);
+#endif
+#ifdef ZTE_FEATURE_CHARGER_USB_THERMAL_SOFTBANK
+static ssize_t batt_usb_therm_store(const struct class *c, const struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+	struct psy_state *pst = &bcdev->psy_list[PSY_TYPE_BATTERY];
+	int rc;
+
+	if (kstrtou32(buf, 10, &bcdev->usb_therm))
+		return -EINVAL;
+	pr_info("store usb_therm=%d\n",  bcdev->usb_therm);
+	rc = write_property_id(bcdev, pst,
+				BATT_USB_THERM, bcdev->usb_therm);
+
+	return count;
+}
+static ssize_t batt_usb_therm_show(const struct class *c, const struct class_attribute *attr,
+			char *buf)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+	struct psy_state *pst = &bcdev->psy_list[PSY_TYPE_BATTERY];
+	int rc;
+
+	rc = read_property_id(bcdev, pst, BATT_USB_THERM);
+	if (rc < 0)
+		return rc;
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", pst->prop[BATT_USB_THERM]);
+}
+static CLASS_ATTR_RW(batt_usb_therm);
+#endif
 static struct attribute *battery_class_attrs[] = {
 	&class_attr_soh.attr,
 	&class_attr_resistance.attr,
@@ -3667,6 +3913,21 @@ static struct attribute *battery_class_attrs[] = {
 	&class_attr_batt_smb139x_temp1.attr,
 	&class_attr_batt_smb139x_temp2.attr,
 	&class_attr_battery_cycle.attr,
+	&class_attr_skin_temp.attr,
+#ifdef ZTE_CHARGER_1S2P_BATTERY
+	&class_attr_batt_1s2p_scchip_state.attr,
+	&class_attr_batt_1s2p_soc1.attr,
+	&class_attr_batt_1s2p_soc2.attr,
+	&class_attr_batt_1s2p_vbatt1.attr,
+	&class_attr_batt_1s2p_vbatt2.attr,
+	&class_attr_batt_1s2p_ibatt1.attr,
+	&class_attr_batt_1s2p_ibatt2.attr,
+	&class_attr_batt_1s2p_tbatt1.attr,
+	&class_attr_batt_1s2p_tbatt2.attr,
+#endif
+#ifdef ZTE_FEATURE_CHARGER_USB_THERMAL_SOFTBANK
+	&class_attr_batt_usb_therm.attr,
+#endif
 	NULL,
 };
 ATTRIBUTE_GROUPS(battery_class);
@@ -4069,6 +4330,18 @@ static int battery_chg_probe(struct platform_device *pdev)
 	bcdev->recharge_soc = 0;
 	bcdev->usb_suspend = false;
 	bcdev->curr_thermal_level = 0;
+#ifdef ZTE_FEATURE_CHARGER_USB_THERMAL_SOFTBANK
+	bcdev->usb_hot_state = false;
+	bcdev->uevent_typec_thermal_device = platform_device_alloc("ext_typec_thermal", -1);
+	if (!bcdev->uevent_typec_thermal_device) {
+		dev_err(dev, "fail to alloc for ext_typec_thermal");
+	} else {
+		rc = platform_device_add(bcdev->uevent_typec_thermal_device);
+		if (rc < 0) {
+			dev_err(dev, "fail to add for ext_typec_thermal rc=%d", rc);
+		}
+	}
+#endif
 	down_write(&bcdev->state_sem);
 	atomic_set(&bcdev->state, PMIC_GLINK_STATE_UP);
 	/*

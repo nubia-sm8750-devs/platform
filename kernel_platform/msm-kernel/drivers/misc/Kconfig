@@ -514,6 +514,13 @@ config OPEN_DICE
 
 	  If unsure, say N.
 
+config SAFECHIP_VEB_A5
+	tristate "safechip zyitong veb A5"
+	depends on SPI
+	default n
+	help
+	  This driver provides support for safechip zyitong veb A5 devices.
+
 config VCPU_STALL_DETECTOR
 	tristate "Guest vCPU stall detector"
 	depends on OF && HAS_IOMEM
@@ -605,4 +612,5 @@ source "drivers/misc/uacce/Kconfig"
 source "drivers/misc/pvpanic/Kconfig"
 source "drivers/misc/mchp_pci1xxxx/Kconfig"
 source "drivers/misc/haptic_hv/Kconfig"
+source "drivers/misc/haptic_86938_hv/Kconfig"
 endmenu

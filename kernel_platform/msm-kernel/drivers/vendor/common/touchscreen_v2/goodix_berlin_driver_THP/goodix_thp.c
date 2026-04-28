@@ -47,6 +47,8 @@ static int goodix_thp_suspend(struct goodix_thp_core *core_data);
 static int goodix_thp_resume(struct goodix_thp_core *core_data);
 extern void goodix_thp_tpd_register_fw_class(struct goodix_thp_core *core_data);
 
+static bool hal_is_prepared;
+
 #ifdef  CONFIG_TOUCHSCREEN_DRM_PANEL_NOTIFIER
 static struct drm_panel *active_panel;
 static void goodix_ts_panel_notifier_callback(enum panel_event_notifier_tag tag,
@@ -80,6 +82,7 @@ static int goodix_thp_spi_trans(struct goodix_thp_core *cd,
         return ret;
 }
 
+#if 0
 static void goodix_thp_set_fp_int_pin(struct thp_ts_device *tdev, u8 level)
 {
 	static bool is_high = false;
@@ -92,6 +95,7 @@ static void goodix_thp_set_fp_int_pin(struct thp_ts_device *tdev, u8 level)
 		tdev->hw_ops->set_fp_int_pin(tdev, 0);
 	}
 }
+#endif
 
 /*
  * If irq is disabled/enabled, can not disable/enable again
@@ -136,8 +140,11 @@ static void put_frame_list(struct goodix_thp_core *core_data, int type, u8 *data
         mutex_lock(&core_data->frame_mutex);
         /* check for max limit */
         if ((list->tail + 1) % GOODIX_THP_MAX_FRAME_BUF_COUNT == list->head) {
-                //ts_err("frame mmap buffer is full");
-                goto wake_up;
+                ts_err("frame mmap buffer is full, overwriting oldest data");
+#ifdef CONFIG_VENDOR_ZTE_DEV_MONITOR_SYSTEM
+		tpd_zlog_record_notify(TP_OVERLOW_ERROR_NO);
+#endif
+                list->head = (list->head + 1) % GOODIX_THP_MAX_FRAME_BUF_COUNT; // Overwrite the oldest data
         }
 
         req_pkg = (struct driver_request_pkg *)&list->buf[list->tail * GOODIX_THP_MAX_FRAME_LEN];
@@ -147,8 +154,6 @@ static void put_frame_list(struct goodix_thp_core *core_data, int type, u8 *data
         if (len > 0)
                 memcpy(req_pkg->request.data, data, len);
         list->tail = (list->tail + 1) % GOODIX_THP_MAX_FRAME_BUF_COUNT;
-
-wake_up:
         core_data->frame_waitq_state = WAKEUP_STATE;
         wake_up_interruptible(&(core_data->frame_wq));
         mutex_unlock(&(core_data->frame_mutex));
@@ -182,7 +187,13 @@ static int goodix_thp_release(struct inode *inode, struct file *filp)
 
         ts_info("%s: called", __func__);
 
+#ifdef CONFIG_VENDOR_ZTE_DEV_MONITOR_SYSTEM
+	tpd_zlog_record_notify(TP_SERVICE_ERROR_NO);
+#endif
         /* check thp dev status */
+#ifndef ZTE_FEATURE_PV_AR
+        hal_is_prepared = false;
+#endif  /* ZTE_FEATURE_PV_AR */
         mutex_lock(&core_data->ts_mutex);
         if (core_data->open_num > 0)
                 core_data->open_num--;
@@ -209,38 +220,42 @@ static long goodix_thp_ioctl_get_frame(unsigned long arg)
                         core_data->frame_waitq_state = WAIT_STATE;
                         if (core_data->frame_wait_time == 0) {
                                 mutex_unlock(&core_data->frame_mutex);
-                                wait_event_interruptible(core_data->frame_wq,
+                                r = wait_event_interruptible(core_data->frame_wq,
                                         (core_data->frame_waitq_state == WAKEUP_STATE));
                                 mutex_lock(&core_data->frame_mutex);
+                                if (r < 0) {
+                                        ts_err("Interrupted by a signal");
+                                        goto out;
+                                }
                         } else {
                                 mutex_unlock(&core_data->frame_mutex);
                                 r = wait_event_interruptible_timeout(core_data->frame_wq,
                                         (core_data->frame_waitq_state == WAKEUP_STATE),
                                         msecs_to_jiffies(core_data->frame_wait_time));
                                 mutex_lock(&core_data->frame_mutex);
-                                if (r == 0)
+                                if (r < 0) {
+                                        ts_err("Interrupted by a signal");
+                                        goto out;
+                                } else if (r == 0) {
+                                        ts_err("get frame timeout");
                                         r = -ETIMEDOUT;
+                                        goto out;
+                                }
                         }
                 }
         }
 
+        r = 0;
         if (list->head != list->tail) {
                 hal_frame.pos = list->head * GOODIX_THP_MAX_FRAME_LEN;
                 hal_frame.tv_us = ktime_get_real_ns() / 1000;
                 if(copy_to_user(user_val, &hal_frame, sizeof(hal_frame))) {
                         ts_err("Failed to copy_to_user().");
                         r = -EFAULT;
-                        goto out;
                 }
-                r = 0;
         } else {
-                if (r == -ETIMEDOUT) {
-                        ts_err("get frame timeout, timeout value[%d]",
-                                core_data->frame_wait_time);
-                } else {
-                        ts_err("no frame");
-                        r = -ENODATA;
-                }
+                ts_err("no frame");
+                r = -ENODATA;
         }
 
 out:
@@ -647,6 +662,7 @@ static long goodix_thp_ioctl_recv_tsc_msg(unsigned long arg)
                 break;
         default:
                 ts_err("not support svc msg:0x%02x", tsc_msg.cmd);
+                hal_is_prepared = true;
                 break;
         }
 
@@ -985,6 +1001,35 @@ int zte_stability_level(int enable)
 }
 
 /* report_rate start*/
+/* Started by AICoder, pid:q0565131d1277e71455b09b010eadb37f0d8fd7b */
+int report_rate_120HZ(int enable)
+{
+        struct goodix_thp_core *cd = gdix_thp_core;
+        u8 temp_cmd[16];
+        u16 checksum = 0;
+        int i;
+
+        temp_cmd[0] = 0x00;
+	temp_cmd[1] = 0x00;
+	temp_cmd[2] = 0x05;
+	temp_cmd[3] = 0x9d;
+
+	if (enable == 1) {
+	        ts_info("%s success in 120Hz", __func__); //temp NX789 actually 180HZ
+		temp_cmd[4] = 0x00;
+	}
+
+        for (i = 0; i < 5; i++) {
+                checksum += temp_cmd[i];
+        }
+        temp_cmd[5] = (u8)checksum;
+        temp_cmd[6] = (u8)(checksum >> 8);
+        put_frame_list(cd, REQUEST_TYPE_CMD, temp_cmd, 7);
+
+	return 0;
+}
+/* Ended by AICoder, pid:q0565131d1277e71455b09b010eadb37f0d8fd7b */
+
 int report_rate_240HZ(int enable)
 {
         struct goodix_thp_core *cd = gdix_thp_core;
@@ -1021,16 +1066,12 @@ int report_rate_480HZ(int enable)
 
         temp_cmd[0] = 0x00;
 	temp_cmd[1] = 0x00;
-	temp_cmd[2] = 0x06;
-	temp_cmd[3] = 0xC0;
+	temp_cmd[2] = 0x05;
+	temp_cmd[3] = 0x9d;
 
 	if (enable == 1) {
 		ts_info("%s success in 480Hz", __func__);
-		temp_cmd[4] = 0x01;
-                temp_cmd[5] = 0x00;
-	} else {
-		ts_info("%s success exit 480HZ", __func__);
-		temp_cmd[4] = 0x00;
+		temp_cmd[4] = 0x02;
                 temp_cmd[5] = 0x00;
 	}
         for (i = 0; i < 6; i++) {
@@ -1042,7 +1083,7 @@ int report_rate_480HZ(int enable)
 
 	return 0;
 }
-int report_rate_960HZ(int enable)
+int report_interpolate_mode(int enable)
 {
         struct goodix_thp_core *cd = gdix_thp_core;
         u8 temp_cmd[16];
@@ -1055,11 +1096,11 @@ int report_rate_960HZ(int enable)
 	temp_cmd[3] = 0xC1;
 
 	if (enable == 1) {
-		ts_info("%s success in 960Hz", __func__);
+		ts_info("%s enter success", __func__);
 		temp_cmd[4] = 0x01;
                 temp_cmd[5] = 0x00;
 	} else {
-		ts_info("%s success exit 960HZ", __func__);
+		ts_info("%s exit success", __func__);
 		temp_cmd[4] = 0x00;
                 temp_cmd[5] = 0x00;
 	}
@@ -1072,6 +1113,7 @@ int report_rate_960HZ(int enable)
 
 	return 0;
 }
+
 int zte_tp_set_report_rate(int enable)
 {
         static int current_report_mode = tp_freq_240Hz;
@@ -1080,47 +1122,54 @@ int zte_tp_set_report_rate(int enable)
         ts_info("%s IN, set report_rate state %d", __func__, enable);
 
 	switch (enable) {
-	case tp_freq_240Hz:
-                if (current_report_mode == tp_freq_960Hz) {
-                        ret = report_rate_960HZ(0);
-                        if (ret < 0)
+	case tp_freq_120Hz:
+		if (current_report_mode == tp_freq_960Hz || current_report_mode == tp_freq_480Hz) {
+			ret = report_interpolate_mode(0);
+			if (ret < 0)
 			        return ret;
-                        ret = report_rate_480HZ(0);
+		}
+		ret = report_rate_120HZ(1);
+		if (ret < 0)
+		        return ret;
+		current_report_mode = tp_freq_120Hz;
+		break;
+	case tp_freq_240Hz:
+                if (current_report_mode == tp_freq_960Hz || current_report_mode == tp_freq_480Hz) {
+                        ret = report_interpolate_mode(0);
                         if (ret < 0)
 			         return ret;
                 }
-                if (current_report_mode == tp_freq_480Hz) {
-                        ret = report_rate_480HZ(0);
-                        if (ret < 0)
-			         return ret;
-                }
+		ret = report_rate_240HZ(1);
+		if (ret < 0)
+		        return ret;
                 current_report_mode = tp_freq_240Hz;
 		break;
 	case tp_freq_480Hz:
 		if (current_report_mode == tp_freq_960Hz) {
-			ret = report_rate_960HZ(0);
-			if (ret < 0)
-				return ret;
-		} else {
-			ret = report_rate_480HZ(1);
+			ret = report_interpolate_mode(0);
 			if (ret < 0)
 				return ret;
 		}
+                ret = report_rate_240HZ(1);
+		if (ret < 0)
+		         return ret;
+		ret = report_interpolate_mode(1);
+		if (ret < 0)
+			return ret;
 		current_report_mode = tp_freq_480Hz;
 		break;
 	case tp_freq_960Hz:
 		if (current_report_mode == tp_freq_480Hz) {
-			ret = report_rate_960HZ(1);
+			ret = report_interpolate_mode(0);
 			if (ret < 0)
 				return ret;
-		} else {
-			ret = report_rate_480HZ(1);
-			if (ret < 0)
-				return ret;
-			ret = report_rate_960HZ(1);
-			if (ret < 0)
-				return ret;
-			}
+		}
+		ret = report_rate_480HZ(1);
+		if (ret < 0)
+			return ret;
+		ret = report_interpolate_mode(1);
+		if (ret < 0)
+			return ret;
 		current_report_mode = tp_freq_960Hz;
 		break;
 	default:
@@ -1163,7 +1212,7 @@ int zte_play_game(int enable)
 		ret = zte_follow_hand_level(2);
 		if (ret < 0)
 			return ret;
-		ret = zte_tp_set_report_rate(1);
+		ret = zte_tp_set_report_rate(cd->ztec.tp_report_rate);
 		if (ret < 0)
 			return ret;
 		ret = zte_stability_level(2);
@@ -1193,12 +1242,104 @@ int zte_play_game(int enable)
 		ret = zte_stability_level(2);
 		if (ret < 0)
 			return ret;
+		cd->ztec.rotation_limit_level = 2;
 
 		ts_info("send exit game cmd success");
 	}
 
 	return 0;
 }
+
+/* Started by AICoder, pid:s72d7a44269cd82149c70bc9503c1e6eae550446 */
+int goodix_thp_save_debug(int enable)
+{
+        struct goodix_thp_core *cd = gdix_thp_core;
+        u8 val[2];
+
+        ts_info("%s IN, default open", __func__);
+        cd->logtofile_on = enable;
+        val[0] = NOTIFY_TYPE_LOGTOFILE;
+        val[1] = enable;
+
+        put_frame_list(cd, REQUEST_TYPE_NOTIFY, val, 2);
+        return 0;
+}
+
+int goodix_thp_reset_basline(int enable)
+{
+        struct goodix_thp_core *cd = gdix_thp_core;
+        u8 temp_cmd[16];
+        u16 checksum = 0;
+        int i;
+
+        ts_info("%s IN", __func__);
+        temp_cmd[0] = 0x00;
+        temp_cmd[1] = 0x00;
+        temp_cmd[2] = 0x05;
+        temp_cmd[3] = 0x90;
+
+        if (enable) {
+                temp_cmd[4] = 0x01;
+        } else {
+                temp_cmd[4] = 0x00;
+        }
+
+        for (i = 0; i < 5; i++) {
+                checksum += temp_cmd[i];
+        }
+        temp_cmd[5] = (u8)checksum;
+        temp_cmd[6] = (u8)(checksum >> 8);
+        put_frame_list(cd, REQUEST_TYPE_CMD, temp_cmd, 7);
+	return 0;
+}
+/* Ended by AICoder, pid:s72d7a44269cd82149c70bc9503c1e6eae550446 */
+
+/* Started by AICoder, pid:de1bf45f91gc01d146860b1a50ee1b13f600a235 */
+int goodix_thp_save_dump_log(void) /*for debug ghost point*/
+{
+        struct goodix_thp_core *cd = gdix_thp_core;
+        u8 val[1] = {NOTIFY_TYPE_DUMP_REP};
+
+        ts_info("%s IN, default open", __func__);
+        put_frame_list(cd, REQUEST_TYPE_NOTIFY, val, 1);
+
+        return 0;
+}
+/* Ended by AICoder, pid:de1bf45f91gc01d146860b1a50ee1b13f600a235 */
+
+/* Started by AICoder, pid:xb997be3e3wf355144830982c08c442f9d2891b7 */
+int recovery_game_mode_after_reset(void)
+{
+        struct goodix_thp_core *cd = gdix_thp_core;
+        int ret = 0;
+
+        if(cd->ztec.is_play_game) {
+                ret = zte_play_game(cd->ztec.is_play_game);
+                if (ret < 0)
+                        return ret;
+
+                ret = zte_sensibility_level(cd->ztec.sensibility_level);
+                if (ret < 0)
+                        return ret;
+
+                ret = zte_follow_hand_level(cd->ztec.follow_hand_level);
+                if (ret < 0)
+                        return ret;
+
+                ret = zte_stability_level(cd->ztec.stability_level);
+                if (ret < 0)
+                        return ret;
+                ret = zte_set_display_rotation(cd->ztec.display_rotation);
+                if (ret < 0)
+                        return ret;
+
+                ts_info("recovery game mode success");
+        } else {
+                ts_info("no need to recovery game mode");
+        }
+        return 0;
+}
+/* Ended by AICoder, pid:xb997be3e3wf355144830982c08c442f9d2891b7 */
 
 static long goodix_thp_ioctl(struct file *filp, unsigned int cmd,
                                 unsigned long arg)
@@ -1524,8 +1665,11 @@ static int goodix_thp_gesture_irq_handler(struct goodix_thp_core *core_data)
         //u16 gsx_data = ~core_data->gesture_enable;
         int coor_x, coor_y;
         struct thp_ts_device *ts_dev =  core_data->ts_dev;
-	struct input_dev *input_dev = core_data->input_dev;
+        struct input_dev *input_dev = core_data->input_dev;
         int status;
+        u8 ges_data[50] = {0};
+        char buffer[256];
+        int buffer_index = 0;
 
         status = (core_data->ztec.is_wakeup_gesture << 1) | core_data->ztec.is_single_tap;
         if (ges_addr == 0) {
@@ -1540,6 +1684,17 @@ static int goodix_thp_gesture_irq_handler(struct goodix_thp_core *core_data)
                                 r, temp_data[0]);
                 goto re_send_ges_cmd;
         }
+
+/* Started by AICoder, pid:te3cbleb6a8318e144d508f0005595215545fccb */
+        r = ts_dev->hw_ops->read(ts_dev, 0x1033a, ges_data, sizeof(ges_data));
+
+        for (int i = 0; i < sizeof(ges_data); i++) {
+                sprintf(buffer + buffer_index, "%d,", ges_data[i]);
+                buffer_index += strlen(buffer + buffer_index);
+        }
+        buffer[buffer_index - 1] = '\0';
+        ts_info("%s", buffer);
+/* Ended by AICoder, pid:te3cbleb6a8318e144d508f0005595215545fccb */
 
         /* check gesture data */
         if (checksum16_cmp(temp_data, GESTURE_DATA_HEAD_LEN, GOODIX_LE_MODE)) {
@@ -1681,6 +1836,10 @@ static irqreturn_t goodix_thp_threadirq_func(int irq, void *data)
 		}
 	}
 #endif
+        if (!hal_is_prepared) {
+                ts_err("hal is not prepared,skip irq");
+                return IRQ_HANDLED;
+        }
 
         if (tpd_cdev->bbat_test_enter) {
                 if (tpd_cdev->bbat_int_test == false) {
@@ -1830,8 +1989,9 @@ static void goodix_thp_force_release_all(void)
         for (i = 0; i < INPUT_AGENT_MAX_FINGERS; i++) {
                 input_mt_slot(input_dev, i);
                 input_mt_report_slot_state(input_dev, 0, 0);
+                tpd_touch_release(input_dev, i);
 #if defined(CONFIG_TOUCHSCREEN_UFP_MAC) && defined(ZTE_ONE_KEY)
-		one_key_report(false, -1, -1, i);
+                one_key_report(false, -1, -1, i);
 #endif
         }
         report_ufp_uevent(UFP_FP_UP);
@@ -1847,6 +2007,7 @@ static void goodix_thp_force_release_all(void)
 
 /* Started by AICoder, pid:r3d4ch8e6ai310914a540bdc00a936248d161ec0 */
 static int large_area_uevent_count = 0;
+static int large_area_ignore_count = 10;
 
 static inline void __report_large_area_uevent(char *str)
 {
@@ -1854,6 +2015,12 @@ static inline void __report_large_area_uevent(char *str)
 
         if (!ufp_tp_ops.uevent_pdev) {
                 ts_err("large uevent pdev is null!\n");
+                return;
+        }
+
+        if (large_area_ignore_count >= 0) {
+                large_area_ignore_count--;
+                UFP_INFO("tp ignore large suppression area count = %d", large_area_ignore_count);
                 return;
         }
 
@@ -1942,10 +2109,10 @@ static long goodix_thp_input_agent_ioctl_set_coordinate(unsigned long arg)
         /* fp touch flag */
         if (data.fp_mode) {
                 report_ufp_uevent(UFP_FP_DOWN);
-                goodix_thp_set_fp_int_pin(gdix_thp_core->ts_dev, 1);
+                //goodix_thp_set_fp_int_pin(gdix_thp_core->ts_dev, 1);
         } else {
                 report_ufp_uevent(UFP_FP_UP);
-                goodix_thp_set_fp_int_pin(gdix_thp_core->ts_dev, 0);
+                //goodix_thp_set_fp_int_pin(gdix_thp_core->ts_dev, 0);
         }
 
         return ret;
@@ -2425,6 +2592,7 @@ static int goodix_thp_suspend(struct goodix_thp_core *core_data)
                 enable_irq_wake(core_data->irq);
         }
 exit:
+        goodix_thp_save_debug(0);
         goodix_thp_force_release_all();
         ts_info("Suspend end");
         return r;
@@ -2433,7 +2601,8 @@ exit:
 static int goodix_thp_resume(struct goodix_thp_core *core_data)
 {
         struct thp_ts_device *ts_dev = core_data->ts_dev;
-        //int ret;
+        struct thp_input_agent_ioctl_coor_data data;
+        int ret;
 
  #ifdef CONFIG_TOUCHSCREEN_UFP_MAC
 	if (aod_down_flag) {
@@ -2474,19 +2643,39 @@ static int goodix_thp_resume(struct goodix_thp_core *core_data)
 		goodix_thp_ioctl_set_charge_state(1);
 	}
 #endif
-        /*if (core_data->ztec.is_play_game) {
+        if (core_data->ztec.is_play_game) {
 		ret = zte_play_game(1);
 		if (ret)
   			ts_err("set game mode failed!");
 		ret = zte_sensibility_level(core_data->ztec.sensibility_level);
 		ret = zte_follow_hand_level(core_data->ztec.follow_hand_level);
                 ret = zte_stability_level(core_data->ztec.stability_level);
-		ret = zte_tp_set_report_rate(core_data->ztec.display_rotation);
-	}*/
+		ret = zte_set_display_rotation(core_data->ztec.display_rotation);
+	}
+
         atomic_set(&core_data->suspended, 0);
         core_data->state_change_flag = 1;
 exit:
+        data.large_touch_stat = 0;
         goodix_thp_set_irq_enable(core_data, IRQ_ENABLE_FLAG);
+        //goodix_thp_save_debug(1);
+
+#ifdef CONFIG_TOUCHSCREEN_UFP_MAC
+	core_data->ztec.is_single_tap = core_data->ztec.is_single_aod | core_data->ztec.is_single_fp | core_data->ztec.is_single_game;
+	core_data->ztec.is_wakeup_gesture = core_data->ztec.is_set_wakeup_in_suspend;
+	core_data->ztec.is_one_key = core_data->ztec.is_set_onekey_in_suspend;
+	core_data->ztec.is_fake_sleep = core_data->ztec.is_fake_sleep_in_suspend;
+        core_data->ztec.is_screen_off_awake = core_data->ztec.is_screen_off_awake_in_suspend;
+#else
+	core_data->ztec.is_single_tap = core_data->ztec.is_single_aod | core_data->ztec.is_single_fp | core_data->ztec.is_single_game;
+	core_data->ztec.is_wakeup_gesture = core_data->ztec.is_set_wakeup_in_suspend;
+#endif
+	ts_info("core_data->ztec.is_single_tap is %d", core_data->ztec.is_single_tap);
+	ts_info("core_data->ztec.is_wakeup_gesture is %d", core_data->ztec.is_wakeup_gesture);
+	ts_info("core_data->ztec.is_one_key is %d", core_data->ztec.is_one_key);
+	ts_info("core_data->ztec.is_fake_sleep is %d", core_data->ztec.is_fake_sleep);
+        ts_info("core_data->ztec.is_screen_off_awake is %d", core_data->ztec.is_screen_off_awake);
+
         ts_info("Resume end");
         return 0;
 }
@@ -2908,9 +3097,11 @@ static int goodix_thp_probe(struct platform_device *pdev)
 	core_data->ztec.sensibility_level = 2;
 	core_data->ztec.follow_hand_level = 2;
 	core_data->ztec.stability_level = 2;
-	core_data->ztec.rotation_limit_level = 1;
+	core_data->ztec.rotation_limit_level = 2;
 	core_data->ztec.is_fake_sleep = 0;
 	core_data->ztec.is_fake_sleep_in_suspend = 0;
+	core_data->ztec.is_screen_off_awake = 0;
+	core_data->ztec.is_screen_off_awake_in_suspend = 0;
 #ifdef FOR_ZTE_CELL
 	core_data->ztec.tp_report_rate = 0;
 	ts_info("tp_report_rate set 120HZ");

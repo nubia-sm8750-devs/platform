@@ -366,6 +366,11 @@
 		label = "dsi-ctrl-0";
 		cell-index = <0>;
 		frame-threshold-time-us = <800>;
+
+		#ifdef ZTE_DISP_QVHODUR
+		qcom,dsi-ctrl-shared;
+		#endif
+
 		reg = <0xae94000 0x1000>,
 			<0xaf0f000 0x4>,
 			<0x0ae36000 0x300>;
@@ -424,6 +429,10 @@
 		      <0xae94200 0xa0>;
 		reg-names = "dsi_phy", "pll_base", "dyn_refresh_base";
 		pll-label = "dsi_pll_3nm";
+
+		#ifdef ZTE_DISP_QVHODUR
+		qcom,dsi-phy-shared;
+		#endif
 
 		qcom,platform-strength-ctrl = [55 03
 						55 03

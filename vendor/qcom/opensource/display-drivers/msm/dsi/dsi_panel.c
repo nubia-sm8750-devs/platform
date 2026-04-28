@@ -20,9 +20,14 @@
 #include "sde_vdc_helper.h"
 #ifdef CONFIG_DRM_ZTE_DISP
 #include "../zte_disp/zte_disp_work.h"
+#include "../zte_disp/zte_disp_i2c.h"
 #endif
 #ifdef CONFIG_DRM_ZTE_DISP_FOD
 #include "../zte_disp/zte_disp_backlight.h"
+#endif
+#ifdef CONFIG_DRM_ZTE_DISP_QVCORK
+#include "../zte_dual_disp/zte_disp_backlight.h"
+#include "../zte_dual_disp/zte_disp_work.h"
 #endif
 #include "sde_hw_catalog.h"
 
@@ -275,6 +280,10 @@ static int dsi_panel_reset(struct dsi_panel *panel)
 	struct dsi_panel_reset_config *r_config = &panel->reset_config;
 	int i;
 
+	#ifdef CONFIG_DRM_ZTE_DISP
+	if (panel->i2c_power_enabled)
+		zte_disp_set_cmds(0x1, 0x28, sgm62110s_device); //add for PQ84P01 lcdPOWER to FPWM
+	#endif
 	if (!gpio_is_valid(r_config->reset_gpio))
 		goto skip_reset_gpio;
 
@@ -463,7 +472,7 @@ static int dsi_panel_tx_cmd_set(struct dsi_panel *panel,
 
 	if (!panel || !panel->cur_mode)
 		return -EINVAL;
-
+    
 	mode = panel->cur_mode;
 
 	cmds = mode->priv_info->cmd_sets[type].cmds;
@@ -477,9 +486,9 @@ static int dsi_panel_tx_cmd_set(struct dsi_panel *panel,
 		goto error;
 	}
 
-	#ifdef CONFIG_DRM_ZTE_DISP
+	#if defined(CONFIG_DRM_ZTE_DISP) || defined(CONFIG_DRM_ZTE_DISP_QVCORK)
 	if (mode->priv_info->cmd_sets[type].logable)
-		pr_info("MSM_LCD cmds [id, type, count] = [%d, %s, %d]\n", type, mode->priv_info->cmd_sets[type].name, count); /*add by zte for log print*/
+		pr_info("MSM_LCD %s panel cmds [id, type, count] = [%d, %s, %d]\n", panel->type, type, mode->priv_info->cmd_sets[type].name, count); /*add by zte for log print*/
 	#endif
 
 	for (i = 0; i < count; i++) {
@@ -506,12 +515,11 @@ error:
 	return rc;
 }
 
-#ifdef CONFIG_DRM_ZTE_DISP
+#if defined(CONFIG_DRM_ZTE_DISP) || defined(CONFIG_DRM_ZTE_DISP_QVCORK)
 int zte_dsi_panel_tx_cmd_set(struct dsi_panel *panel,
 				enum dsi_cmd_set_type type)
 {
 	int rc = 0;
-
 	if (!panel || !panel->cur_mode)
 		return -EINVAL;
 
@@ -610,7 +618,7 @@ static int dsi_panel_wled_register(struct dsi_panel *panel,
 	return 0;
 }
 
-#ifndef CONFIG_DRM_ZTE_DISP_FOD
+#if !defined(CONFIG_DRM_ZTE_DISP_FOD) && !defined(CONFIG_DRM_ZTE_DISP_QVCORK) 
 static int mipi_dsi_dcs_subtype_set_display_brightness(struct mipi_dsi_device *dsi,
 	u32 bl_lvl, u32 bl_dcs_subtype)
 {
@@ -725,10 +733,16 @@ int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl)
 	switch (bl->type) {
 	case DSI_BACKLIGHT_WLED:
 		rc = backlight_device_set_brightness(bl->raw_bd, bl_lvl);
-		break;
+		break; 
 	case DSI_BACKLIGHT_DCS:
 	    #ifdef CONFIG_DRM_ZTE_DISP_FOD
-			rc = zte_dsi_panel_update_backlight(panel, bl_lvl);
+			#ifdef CONFIG_DRM_ZTE_DISP_DUAL_PANEL
+				rc = zte_dsi_dual_panel_update_backlight(panel, bl_lvl);
+			#else
+				rc = zte_dsi_panel_update_backlight(panel, bl_lvl);
+			#endif
+		#elif defined(CONFIG_DRM_ZTE_DISP_QVCORK)
+			rc = zte_dsi_dual_panel_update_backlight(panel, bl_lvl);
 		#else
 			rc = dsi_panel_update_backlight(panel, bl_lvl);
 		#endif
@@ -1015,6 +1029,12 @@ static int dsi_panel_parse_timing(struct dsi_mode_info *mode,
 	rc = utils->read_u32(utils->data, "qcom,dsi-qsync-mode-avr-step-fps", &mode->avr_step_fps);
 	if (rc) {
 		DSI_DEBUG("avr step fps not defined in timing node\n");
+		rc = 0;
+	}
+
+	rc = utils->read_u32(utils->data, "qcom,dsi-mode-te-width-us", &mode->te_pulse_width_us);
+	if (rc) {
+		DSI_DEBUG("mode te-width not defined in timing node\n");
 		rc = 0;
 	}
 
@@ -2246,7 +2266,7 @@ const char *cmd_set_prop_map[DSI_CMD_SET_MAX] = {
 	"qcom,mdss-dsi-sticky_still_disable-command",
 	"qcom,mdss-dsi-sticky_on_fly-command",
 	"qcom,mdss-dsi-trigger_self_refresh-command",
-#ifdef CONFIG_DRM_ZTE_DISP
+#if defined(CONFIG_DRM_ZTE_DISP) || defined(CONFIG_DRM_ZTE_DISP_QVCORK)
 	"zte,mdss-dsi-hbm-off-commands",
 	"zte,mdss-dsi-hbm-on-commands",
 	"zte,mdss-dsi-aod-low-commands",
@@ -2262,6 +2282,19 @@ const char *cmd_set_prop_map[DSI_CMD_SET_MAX] = {
 	"zte,mdss-dsi-aod-off-hbm-on-commands",
 	"zte,mdss-dsi-bl-commands",
 	"zte,mdss-dsi-reg-read-commands",
+	"zte,mdss-dsi-esd-write-commands",
+	"zte,mdss-dsi-local-hbm-off-commands",
+	"zte,mdss-dsi-local-hbm-on-commands",
+#endif
+#ifdef CONFIG_DRM_ZTE_DISP_LTPO
+	"zte,mdss-dsi-min-fps-commands",
+	"zte,mdss-dsi-timing-switch-120fps-command",
+	"zte,mdss-dsi-timing-switch-90fps-command",
+	"zte,mdss-dsi-timing-switch-60fps-command",
+	"zte,mdss-dsi-timing-switch-30fps-command",
+	"zte,mdss-dsi-timing-switch-10fps-command",
+	"zte,mdss-dsi-timing-switch-5fps-command",
+	"zte,mdss-dsi-timing-switch-1fps-command",
 #endif
 };
 
@@ -2303,7 +2336,7 @@ const char *cmd_set_state_map[DSI_CMD_SET_MAX] = {
 	"qcom,mdss-dsi-sticky_still_disable-command-state",
 	"qcom,mdss-dsi-sticky_on_fly-command-state",
 	"qcom,mdss-dsi-trigger_self_refresh-command-state",
-#ifdef CONFIG_DRM_ZTE_DISP
+#if defined(CONFIG_DRM_ZTE_DISP) || defined(CONFIG_DRM_ZTE_DISP_QVCORK)
 	"zte,mdss-dsi-hbm-off-commands-state",
 	"zte,mdss-dsi-hbm-on-commands-state",
 	"zte,mdss-dsi-aod-low-commands-state",
@@ -2319,6 +2352,19 @@ const char *cmd_set_state_map[DSI_CMD_SET_MAX] = {
 	"zte,mdss-dsi-aod-off-hbm-on-commands-state",
 	"zte,mdss-dsi-bl-commands-state",
 	"zte,mdss-dsi-reg-read-commands-state",
+	"zte,mdss-dsi-esd-write-commands-state",
+	"zte,mdss-dsi-local-hbm-off-commands-state",
+	"zte,mdss-dsi-local-hbm-on-commands-state",
+#endif
+#ifdef CONFIG_DRM_ZTE_DISP_LTPO
+	"zte,mdss-dsi-min-fps-commands-state",
+	"zte,mdss-dsi-timing-switch-120fps-command-state",
+	"zte,mdss-dsi-timing-switch-90fps-command-state",
+	"zte,mdss-dsi-timing-switch-60fps-command-state",
+	"zte,mdss-dsi-timing-switch-30fps-command-state",
+	"zte,mdss-dsi-timing-switch-10fps-command-state",
+	"zte,mdss-dsi-timing-switch-5fps-command-state",
+	"zte,mdss-dsi-timing-switch-1fps-command-state",
 #endif
 };
 
@@ -2479,9 +2525,13 @@ static int dsi_panel_parse_cmd_sets_sub(struct dsi_panel_cmd_set *cmd,
 		goto error_free_mem;
 	}
 
-#ifdef CONFIG_DRM_ZTE_DISP
+#if defined(CONFIG_DRM_ZTE_DISP) || defined(CONFIG_DRM_ZTE_DISP_QVCORK)
 	cmd->name = cmd_set_prop_map[type];
-	cmd->logable = true;
+    if (type == DSI_CMD_SET_ESD_WRITE) {
+        cmd->logable = false;
+    } else {
+		cmd->logable = true;
+	}
 #endif
 
 	return rc;
@@ -4099,7 +4149,7 @@ static void dsi_panel_setup_vm_ops(struct dsi_panel *panel, bool trusted_vm_env)
 	}
 }
 
-#ifdef CONFIG_DRM_ZTE_DISP
+#if defined(CONFIG_DRM_ZTE_DISP) || defined(CONFIG_DRM_ZTE_DISP_QVCORK)
 extern void zte_disp_common_func(struct dsi_panel *panel);
 #endif
 struct dsi_panel *dsi_panel_get(struct device *parent,
@@ -4174,6 +4224,10 @@ struct dsi_panel *dsi_panel_get(struct device *parent,
 				"qcom,mdss-dsi-panel-physical-type", NULL);
 	if (panel_physical_type && !strcmp(panel_physical_type, "oled"))
 		panel->panel_type = DSI_DISPLAY_PANEL_TYPE_OLED;
+
+	panel->disable_cesta_hw_sleep = utils->read_bool(utils->data,
+				"qcom,mdss-disable-cesta-hw-sleep");
+
 	rc = dsi_panel_parse_host_config(panel);
 	if (rc) {
 		DSI_ERR("failed to parse host configuration, rc=%d\n",
@@ -4236,7 +4290,7 @@ struct dsi_panel *dsi_panel_get(struct device *parent,
 			goto error;
 	}
 
-	#ifdef CONFIG_DRM_ZTE_DISP
+	#if defined(CONFIG_DRM_ZTE_DISP) || defined(CONFIG_DRM_ZTE_DISP_QVCORK)
 	zte_disp_common_func(panel);
 	#endif
 
@@ -5443,6 +5497,10 @@ int dsi_panel_switch(struct dsi_panel *panel)
 	mutex_unlock(&panel->panel_lock);
 	#ifdef CONFIG_DRM_ZTE_DISP
 	zte_panel_send_uevent(MSG_FPS, panel->disp_feature[ZTE_LCD_FPS_CTRL].mode, 1);
+	#endif
+	#ifdef CONFIG_DRM_ZTE_DISP_QVCORK
+	if (!strcmp(panel->type, "primary"))
+		zte_panel_send_uevent(MSG_FPS, panel->disp_feature[ZTE_LCD_FPS_CTRL].mode, 1);
 	#endif
 	return rc;
 }

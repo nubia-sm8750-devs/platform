@@ -731,14 +731,20 @@ static int find_free_tcs(struct tcs_group *tcs)
 	unsigned long i;
 	unsigned long max = tcs->offset + tcs->num_tcs;
 	int timeout = 100;
+	u32 sts1, sts2;
 
 	i = find_next_zero_bit(drv->tcs_in_use, max, tcs->offset);
 	if (i >= max)
 		return -EBUSY;
 
+	sts1 = read_tcs_reg(drv, drv->regs[RSC_DRV_STATUS], i);
+
 	while (timeout) {
-		if (read_tcs_reg(drv, drv->regs[RSC_DRV_STATUS], i))
+		sts2 = read_tcs_reg(drv, drv->regs[RSC_DRV_STATUS], i);
+		if (sts2) {
+			ipc_log_string(drv->ipc_log_ctx, "TCS sts1=%u sts2=%u", sts1, sts2);
 			break;
+		}
 		timeout--;
 		udelay(1);
 	}

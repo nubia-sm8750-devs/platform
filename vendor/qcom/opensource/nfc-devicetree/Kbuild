@@ -1,7 +1,7 @@
 ifeq ($(CONFIG_ARCH_SUN),y)
-dtbo-y += nxp/sun-nfc.dtbo \
-          nxp/sun-nfc-cdp.dtbo \
-          nxp/sun-nfc-mtp.dtbo \
+#dtbo-y += nxp/sun-nfc.dtbo \
+#          nxp/sun-nfc-cdp.dtbo \
+#          nxp/sun-nfc-mtp.dtbo \
 
 dtbo-y += st/sun-nfc.dtbo \
           st/sun-nfc-mtp.dtbo \

@@ -65,7 +65,7 @@
  ******************************************************/
 #define AW22XXX_CFG_NAME_MAX        64
 #define AW22XXX_CFG_CUSTOM_MAX      0x20
-#define AW22XXX_CFG_NUM_MAX         350 //255
+#define AW22XXX_CFG_NUM_MAX         4500 //350 450
 #define CFG_BASE_MAX                15 //touch_game3.bin
 
 #define LED_EFFECT_NOINIT_STR       "noinit"
@@ -81,6 +81,7 @@
 int multicolor_led = 0;
 static unsigned int fan_effect = 0;
 static unsigned int lamp_effect = 0;
+static unsigned int touch_effect = 0;
 static unsigned int g_cfg_cur_state = 0;
 static u32 g_ver_var = AW_DRV_VER11;
 static u32 g_custom_en = 0;
@@ -99,6 +100,21 @@ enum CFG_MODE_TYPE {
     CFG_MODE_9, //two flashing
     CFG_MODE_MAX,
 };
+
+enum TOUCH_MODE_TYPE {
+    TOUCH_MODE_0, //steady lighting up
+    TOUCH_MODE_1, //breath
+    TOUCH_MODE_2, //flashing
+    TOUCH_MODE_3, //flow
+    TOUCH_MODE_4, //ripple
+    TOUCH_MODE_5, //echo
+    TOUCH_MODE_6, //hopping
+    TOUCH_MODE_7, //fast flashing
+    TOUCH_MODE_8, //follows the audio
+    TOUCH_MODE_9, //two flashing
+    TOUCH_MODE_MAX,
+};
+
 enum FAN_MODE_TYPE {
     FAN_MODE_0, //steady lighting up
 	FAN_MODE_1, //breath
@@ -121,11 +137,24 @@ static int cfg_mode_addr[CFG_MODE_MAX]={
     0x90,
 };
 static int fan_mode_addr[FAN_MODE_MAX]={
-    0x101,
-    0x31,
-    0x21,
-    0x41,
-    0x111,
+    0x100,
+    0x30,
+    0x20,
+    0x40,
+    0x110,
+};
+
+static int touch_mode_addr[TOUCH_MODE_MAX]={
+    0x1060,
+    0x1070,
+    0x1080,
+    0x10a0,
+    0x10b0,
+    0x10c0,
+    0x10d0,
+    0x10e0,
+    0x1050,
+    0x1090,
 };
 
 static char aw22xxx_fw_name[AW22XXX_CFG_NAME_MAX] = {0};
@@ -1107,7 +1136,7 @@ static void aw22xxx_cfg_loaded(const struct firmware *cont, void *context)
     release_firmware(cont);
 //add by nubia zhouruituan start
     	//aw22xxx_led_imax_cfg(aw22xxx);
-    aw22xxx_imax_cfg(aw22xxx,aw22xxx_imax_code[8]);
+    aw22xxx_imax_cfg(aw22xxx,aw22xxx_imax_code[aw22xxx->imax]);
 //add by nubia zhouruituan end
     pr_info("%s: cfg update complete\n", __func__);
 }
@@ -1723,6 +1752,9 @@ static void aw22xxx_recover_work_routine(struct work_struct *work)
 	msleep(200);
 	aw22xxx->effect = fan_effect;
 	aw22xxx_cfg_recover_update_wait(aw22xxx);
+	msleep(200);
+	aw22xxx->effect = touch_effect;
+	aw22xxx_cfg_recover_update_wait(aw22xxx);
 }
 
 static int aw22xxx_load_nubia_fw_name(struct aw22xxx *aw22xxx)
@@ -1925,9 +1957,25 @@ void aw22xxx_set_cfg_name(int mode, int count) {
         return;
 
     for (i = 0; i < count; i++) {
-        sprintf(aw22xxx_cfg_name[cfg_mode_addr[mode] + i], "aw_cfg%d_%x.bin", mode, i + 1);
+        if (i == 15) {
+            sprintf(aw22xxx_cfg_name[cfg_mode_addr[mode] + i], "aw_cfg%d_%x.bin", mode, 0);//for mix1
+        } else {
+            sprintf(aw22xxx_cfg_name[cfg_mode_addr[mode] + i], "aw_cfg%d_%x.bin", mode, i + 1);
+        }
     }
 }
+
+void aw22xxx_set_touch_name(int mode, int count) {
+    int i;
+
+    if ((mode >= TOUCH_MODE_MAX) || (mode < 0))
+        return;
+
+    for (i = 0; i < count; i++) {
+        sprintf(aw22xxx_cfg_name[touch_mode_addr[mode] + i], "aw_touch%d_%x.bin", mode, i + 1);
+    }
+}
+/* Ended by AICoder, pid:w894baa0e8yd75c14dfe0933300b1a1c3920d18d */
 
 void aw22xxx_set_fan_name(int mode, int count) {
     int i;
@@ -1936,7 +1984,7 @@ void aw22xxx_set_fan_name(int mode, int count) {
         return;
 
     for (i = 0; i < count; i++) {
-        sprintf(aw22xxx_cfg_name[fan_mode_addr[mode] + i], "aw_fan%d_%x.bin", mode, i + 1);
+        sprintf(aw22xxx_cfg_name[fan_mode_addr[mode] + i], "aw_fan%d_%x.bin", mode, i);
     }
 }
 
@@ -1959,6 +2007,20 @@ void aw22xxx_init_leds_name(struct device_node *np) {
         }
     }
     kfree(buf);
+
+/* Started by AICoder, pid:hdc7982f2aa5c69141730acff0e7e11c50a29a29 */
+    AW22_LOG("load TOUCH_MODE_MAX: %d\n", TOUCH_MODE_MAX);
+    buf = kcalloc(TOUCH_MODE_MAX, sizeof(*buf), GFP_KERNEL);
+    if (!buf) return;
+
+    ret = of_property_read_u32_array(np, "touch_modex_count", buf, TOUCH_MODE_MAX);
+    if (!ret) {
+        for (i = 0; i < TOUCH_MODE_MAX; i++) {
+            aw22xxx_set_touch_name(i, buf[i]);
+        }
+    }
+    kfree(buf);
+/* Ended by AICoder, pid:hdc7982f2aa5c69141730acff0e7e11c50a29a29 */
 
 	AW22_LOG("FAN_MODE_MAX: %d\n", FAN_MODE_MAX);
     buf = kcalloc(FAN_MODE_MAX, sizeof(*buf), GFP_KERNEL);
@@ -2101,15 +2163,21 @@ static int aw22xxx_read_chipid(struct aw22xxx *aw22xxx)
             case AW22XXX_SRSTR:
                 pr_info("%s aw22xxx detected\n", __func__);
                 //aw22xxx->flags |= AW22XXX_FLAG_SKIP_INTERRUPTS;
-                aw22xxx_i2c_read(aw22xxx, REG_CHIPID, &reg_val);
-                switch(reg_val) {
+                ret = aw22xxx_i2c_read(aw22xxx, REG_CHIPID, &reg_val);
+                if (ret < 0) {
+                    dev_err(aw22xxx->dev,
+                        "%s: failed to read chip ID: %d\n",
+                        __func__, ret);
+                    return -EIO;
+                }
+                switch (reg_val) {
                     case AW22118_CHIPID:
                         aw22xxx->chipid= AW22118;
                         strcpy(g_chip_id,"aw22118");
                         break;
                     case AW22127_CHIPID:
-                        aw22xxx->chipid= AW22127;
-                        strcpy(g_chip_id,"aw22117");
+                        aw22xxx->chipid = AW22127;
+                        strcpy(g_chip_id, "aw22127"); // Corrected typo from "aw22117" to "aw22127"
                         break;
                     default:
                         pr_err("%s: unknown id=0x%02x\n", __func__, reg_val);
@@ -2372,6 +2440,45 @@ static ssize_t aw22xxx_cfg_show(struct device *dev, struct device_attribute *att
     return len;
 }
 
+/* Started by AICoder, pid:r8062lc226uc1c7146cf09eaa0d2973be5b6acc5 */
+static void aw22xxx_recover_effect_state(int effect) {
+    int tmp_id = 0;
+
+    // lamp off
+    if (effect == 0) {
+        lamp_effect = effect;
+        return;
+    }
+
+    // fan on or off
+    if (effect == 1 || effect == 2) {
+        fan_effect = effect;
+        return;
+    }
+
+    // touch on or off
+    if (effect == 0xb || effect == 0xc || effect == 0xd || effect == 0xe || effect == 3) {
+        touch_effect = effect;
+        return;
+    }
+
+    // fan and lamp check
+    tmp_id = effect >> 4; // div 16
+    switch (tmp_id) {
+        case 2:
+        case 3:
+        case 4:
+        case 16:
+        case 17:
+            fan_effect = effect;
+            break;
+        default:
+            lamp_effect = effect;
+            break;
+    }
+}
+/* Ended by AICoder, pid:r8062lc226uc1c7146cf09eaa0d2973be5b6acc5 */
+
 /* Started by AICoder, pid:te96e546536662c14c2a0a8a40b2ec62ad4426ce */
 static ssize_t aw22xxx_effect_store(struct device* dev, struct device_attribute *attr,
                 const char* buf, size_t len)
@@ -2393,6 +2500,7 @@ static ssize_t aw22xxx_effect_store(struct device* dev, struct device_attribute 
     } else {
         aw22xxx->effect = databuf;
         AW22_LOG("effect=%x\n", aw22xxx->effect);
+        aw22xxx_recover_effect_state(aw22xxx->effect);
     }
 
     databuf = 1;
@@ -2487,7 +2595,7 @@ static ssize_t aw22xxx_rgb_store(struct device* dev, struct device_attribute *at
 
     aw22xxx->rgb[databuf[0]] = databuf[1];
 
-    AW22_LOG("rgb[%d]=%d\n", databuf[0], databuf[1]);
+    AW22_LOG("rgb[%d]=0x%06x\n", databuf[0], databuf[1]);
 
     return len;
 }

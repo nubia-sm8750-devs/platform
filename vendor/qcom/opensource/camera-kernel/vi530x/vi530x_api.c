@@ -22,6 +22,7 @@
 #include <linux/time64.h>
 #include <linux/timekeeping.h>
 
+
 #include "vi530x.h"
 #include "vi530x_platform.h"
 #include "vi530x_firmware.h"
@@ -63,8 +64,17 @@ int64_t timespec_to_ns(struct timespec ts)
 }
 VI530X_Error VI530X_Chip_PowerON(VI530X_DEV dev)
 {
-	VI530X_Error Status = VI530X_ERROR_NONE;
+    VI530X_Error Status = VI530X_ERROR_NONE;
 
+#ifdef CONFIG_TOF_VDIG_SUPPLY
+    Status=regulator_set_voltage(dev->power, 3000000, 3000000);//mV
+    Status=regulator_enable(dev->power);
+	Status = gpio_direction_output(dev->xshut_gpio, 0);
+	mdelay(5);
+	Status = gpio_direction_output(dev->xshut_gpio, 1);
+    vi530x_errmsg("vi530x tof vdig power on regulator");
+
+#else
 	Status = gpio_direction_output(dev->pwren_gpio, 0);
 	Status = gpio_direction_output(dev->xshut_gpio, 0);
 
@@ -72,6 +82,10 @@ VI530X_Error VI530X_Chip_PowerON(VI530X_DEV dev)
 	mdelay(5);
 	Status = gpio_direction_output(dev->xshut_gpio, 1);
 	mdelay(5);
+    vi530x_errmsg("vi530x tof vdig power on gpio");
+
+#endif
+
 	if(Status != VI530X_ERROR_NONE)
 	{
 		vi530x_errmsg("Chip Power ON Failed Status = %d\n", Status);
@@ -87,8 +101,14 @@ VI530X_Error VI530X_Chip_PowerOFF(VI530X_DEV dev)
 
 	Status = gpio_direction_output(dev->xshut_gpio, 0);
 	mdelay(1);
-	Status = gpio_direction_output(dev->pwren_gpio, 0);
-	
+#ifdef CONFIG_TOF_VDIG_SUPPLY
+    Status = regulator_disable(dev->power);
+    vi530x_errmsg("vi530x tof vdig power off regulator");
+#else
+    Status = gpio_direction_output(dev->pwren_gpio, 0);
+    vi530x_errmsg("vi530x tof vdig power off gpio");
+#endif
+
 	if(Status != VI530X_ERROR_NONE)
 	{
 		vi530x_errmsg("Chip Power OFF Failed Status = %d\n", Status);
@@ -361,11 +381,11 @@ static uint32_t VI530X_Calculate_Confidence(VI530X_DEV dev, uint32_t peak, uint3
 	int i;
 	int len;
 	const int32_t xth[] = {4, 32, 114, 175, 313, 482, 539, 657, 1472, 2421, 3223, 6777, 7217, 12326, 14946, 20906, 25976, 32287, 41121, 44258, 51439, 56032, 80216};
-	const int32_t ylower1[] = {4, 7, 16, 22, 34, 49, 54, 66, 136, 211, 279, 566, 600, 1025, 1221, 1682, 2086, 2559, 3336, 3779, 4338, 4796, 6806};
-	const int32_t yupper1[] = {7, 9, 20, 28, 43, 60, 66, 80, 162, 243, 321, 630, 666, 1138, 1338, 1828, 2266, 2743, 3542, 3995, 4580, 5050, 7171};
+	const int32_t ylower1[] = {5,  10,  21,  27, 34, 49, 54, 66, 136, 211, 279, 566, 600, 1025, 1221, 1682, 2086, 2559, 3336, 3779, 4338, 4796, 6806};
+	const int32_t yupper1[] = {7, 13,  25,  32, 43, 60, 66, 80, 162, 243, 321, 630, 666, 1138, 1338, 1828, 2266, 2743, 3542, 3995, 4580, 5050, 7171};
 
-	const int32_t ylower2[] = {4, 7, 16, 22, 34, 49, 54, 66, 136, 211, 279, 566, 600, 1025, 1221, 1682, 1986, 2309, 3036, 3500, 4338, 4896, 5706};
-	const int32_t yupper2[] = {7, 9, 20, 28, 43, 60, 66, 80, 162, 243, 321, 630, 666, 1138, 1338, 1828, 2116, 2499, 3442, 3686, 4480, 5050, 6871};
+	const int32_t ylower2[] = {5,  10,  21,  27, 34, 49, 54, 66, 136, 211, 279, 566, 600, 1025, 1221, 1682, 1986, 2309, 3036, 3500, 4338, 4896, 5706};
+	const int32_t yupper2[] = {7, 13,  25,  32, 43, 60, 66, 80, 162, 243, 321, 630, 666, 1138, 1338, 1828, 2116, 2499, 3442, 3686, 4480, 5050, 6871};
 
 	const int32_t *ylower, *yupper;
 	len = sizeof(xth) / sizeof(xth[0]);
@@ -468,6 +488,10 @@ VI530X_Error VI530X_Get_Measure_Data(VI530X_DEV dev)
 	uint32_t confidence = 0;
 	uint32_t ratio = 0;
 	int16_t tof1 = 0, tof2 = 0;
+	uint32_t tmp_peak = 0, tmp_bin = 0;
+	uint8_t tof1_bin = 0, tof2_bin = 0;
+	uint8_t reftof_bin = 0, flag = 0;;
+	int8_t xtalk_bin = 0;
 
 	Status = vi530x_read_multibytes(dev, VI530X_REG_SCRATCH_PAD_BASE, buf, 32);
 	if (Status != VI530X_ERROR_NONE) {
@@ -475,6 +499,9 @@ VI530X_Error VI530X_Get_Measure_Data(VI530X_DEV dev)
 		return VI530X_ERROR_GET_DATA;
 	}
 
+	tof2_bin = buf[0];
+	tof1_bin = buf[17];
+	reftof_bin = buf[6];
 	tof2 = ((int16_t)buf[2] << 8) | ((int16_t)buf[1]);//*((int16_t *)(buf + 1));
 	tof1 = ((int16_t)buf[13] << 8) | ((int16_t)buf[12]);//*((int16_t *)(buf + 12));
 	integral_times = (((uint32_t )buf[24]) << 16) | (((uint32_t )buf[23]) << 8) | ((uint32_t)buf[22]);
@@ -484,17 +511,24 @@ VI530X_Error VI530X_Get_Measure_Data(VI530X_DEV dev)
 	noise = (((uint32_t )buf[27]) << 16) | (((uint32_t )buf[26]) << 8) | ((uint32_t)buf[25]);//*((uint32_t *)(buf + 25));
 	noise = noise & 0x00ffffff;
 
-	if (tof1 <= 35) {
-		if (peak1 >= 10000 * dev->ma_sum) {
+	xtalk_bin = (int8_t)reftof_bin + dev->XtalkConfig.xtalk_config;
+	if (tof1_bin <= xtalk_bin + 2) {
+		if (peak1 >= 3000 * dev->ma_sum) {
 			millimeter = tof1;
 			peak = peak1;
+			tmp_peak = peak2;
+			tmp_bin = tof2_bin;
 		} else {
 			millimeter = tof2;
 			peak = peak2;
+			tmp_peak = peak1;
+			tmp_bin = tof1_bin;
 		}
 	} else {
 		millimeter = tof1;
 		peak = peak1;
+		tmp_peak = peak2;
+		tmp_bin = tof2_bin;
 	}
 
 	bias = VI530X_Calculate_Pileup_Bias(dev, peak, noise, integral_times);
@@ -511,15 +545,22 @@ VI530X_Error VI530X_Get_Measure_Data(VI530X_DEV dev)
 	if (millimeter < 0)
 		confidence = 0;
 
+	if (millimeter >= 300) {
+		if ((tmp_peak > 10000) && (tmp_bin >= xtalk_bin - 2)
+			&& (tmp_bin <= xtalk_bin + 2))
+			flag = 1;
+	}
+
 	dev->Rangedata.tof = millimeter;
 	dev->Rangedata.confidence = confidence;
 	dev->Rangedata.peak = peak;
 	dev->Rangedata.noise = noise;
 	dev->Rangedata.integral_times = integral_times;
+	dev->Rangedata.flag = flag;//stain flag
 
 	if (dev->enable_debug)
-		vi530x_infomsg("tof: %d, confidence: %d, peak: %u, noise: %u, integral_times: %u, bias: %d\n",
-			millimeter, confidence, peak, noise, integral_times, bias);
+		vi530x_infomsg("tof: %d, confidence: %d, peak: %u, noise: %u, integral_times: %u, bias: %d, flag: %d\n",
+			millimeter, confidence, peak, noise, integral_times, bias, flag);
 
 	return Status;
 }

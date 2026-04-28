@@ -18,11 +18,11 @@ typedef enum
 {
 	HW_A,
 	HW_B,
-    HW_B1,
+	HW_B1,
 	HW_B2,
 	HW_B3,
 	HW_C,
-	HW_C1,
+	HW_D1,
 	HW_D,
 	HW_E,
 	HW_F,
@@ -90,15 +90,15 @@ static const struct hw_pcb_adc_map_str hw_pcb_adc_map[] = {
 #else
 /*HW_PCB_VESION 1.1*/
 static const struct hw_pcb_gpio_map_str hw_pcb_gpio_map[] = {
-	{NUBIA_GPIO_PULL_DOWN, NUBIA_GPIO_PULL_DOWN,	HW_A,  "MB_A"},
-	{NUBIA_GPIO_PULL_DOWN, NUBIA_GPIO_PULL_UP,	    HW_B,  "MB_B"},
+	{NUBIA_GPIO_PULL_DOWN, NUBIA_GPIO_PULL_DOWN,    HW_A,  "MB_A"},
+	{NUBIA_GPIO_PULL_DOWN, NUBIA_GPIO_PULL_UP,      HW_B,  "MB_B"},
 	{NUBIA_GPIO_PULL_UP,   NUBIA_GPIO_PULL_DOWN,    HW_C,  "MB_C"},
 	{NUBIA_GPIO_PULL_UP,   NUBIA_GPIO_PULL_UP,      HW_D,  "MB_D"},
 	{NUBIA_GPIO_FLOAT,     NUBIA_GPIO_PULL_UP,      HW_B1, "MB_B1"},
 	{NUBIA_GPIO_PULL_UP,   NUBIA_GPIO_FLOAT,        HW_B2, "MB_B2"},
 	{NUBIA_GPIO_FLOAT,     NUBIA_GPIO_PULL_DOWN,    HW_B3, "MB_B3"},
-	{NUBIA_GPIO_PULL_DOWN, NUBIA_GPIO_FLOAT,        HW_C1, "MB_C1"},
-	{NUBIA_GPIO_FLOAT,     NUBIA_GPIO_FLOAT,		HW_E,  "MB_E"},
+	{NUBIA_GPIO_PULL_DOWN, NUBIA_GPIO_FLOAT,        HW_D1, "MB_D1"},
+	{NUBIA_GPIO_FLOAT,     NUBIA_GPIO_FLOAT,        HW_E,  "MB_E"},
 };
 #endif
 

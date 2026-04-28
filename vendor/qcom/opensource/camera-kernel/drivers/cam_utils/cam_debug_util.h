@@ -66,6 +66,7 @@ enum cam_debug_module_id {
 	CAM_SYNX,                /* bit 36 */
 	CAM_VMRM,                /* bit 37 */
 	CAM_IO_DUMP,             /* bit 38 */
+	CAM_APERTURE,             /* bit 38 */
 	CAM_DBG_MOD_MAX
 };
 
@@ -128,6 +129,7 @@ static const char *cam_debug_mod_name[CAM_DBG_MOD_MAX] = {
 	[CAM_SYNX]        = "CAM_SYNX",
 	[CAM_VMRM]        = "CAM-VMRM",
 	[CAM_IO_DUMP]     = "CAM-IO-DUMP",
+	[CAM_APERTURE]    = "CAM_APERTURE",
 };
 
 #define ___CAM_DBG_MOD_NAME(module_id)                                      \

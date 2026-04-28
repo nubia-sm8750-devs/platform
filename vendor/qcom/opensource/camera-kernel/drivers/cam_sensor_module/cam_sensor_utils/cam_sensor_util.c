@@ -17,6 +17,8 @@
 #define VALIDATE_VOLTAGE(min, max, config_val) ((config_val) && \
 	(config_val >= min) && (config_val <= max))
 
+extern int request_board_id(void);
+
 int cam_sensor_count_elems_i3c_device_id(struct device_node *dev,
 	int *num_entries, char *sensor_id_table_str)
 {
@@ -2122,12 +2124,23 @@ int cam_sensor_core_power_up(struct cam_sensor_power_ctrl_t *ctrl,
 	long                             time_left;
 	uint32_t                         seq_min_volt = 0;
 	uint32_t                         seq_max_volt = 0;
+	int32_t                          board_id = -1;
+	bool                             is_no_pull = false;
 
 	CAM_DBG(CAM_SENSOR_UTIL, "Enter");
 	if (!ctrl) {
 		CAM_ERR(CAM_SENSOR_UTIL, "Invalid ctrl handle");
 		return -EINVAL;
 	}
+
+#ifdef CONFIG_FRONT_CAM_NOPULL
+	board_id = request_board_id();
+	if(board_id == 10 && soc_info->index == 1)
+	{
+		is_no_pull = true;
+	}
+#endif
+	CAM_DBG(CAM_SENSOR_UTIL, "board_id = %d is_no_pull = %d", board_id, is_no_pull);
 
 	gpio_num_info = ctrl->gpio_num_info;
 	num_vreg = soc_info->num_rgltr;
@@ -2275,7 +2288,7 @@ int cam_sensor_core_power_up(struct cam_sensor_power_ctrl_t *ctrl,
 		case SENSOR_VAF_PWDM:
 		case SENSOR_CUSTOM_REG1:
 		case SENSOR_CUSTOM_REG2:
-			if (debug_bypass_drivers & CAM_BYPASS_RGLTR) {
+			if ((debug_bypass_drivers & CAM_BYPASS_RGLTR) || is_no_pull) {
 				CAM_DBG(CAM_SENSOR_UTIL, "Bypass regulator enable seq_type %d",
 					power_setting->seq_type);
 				continue;

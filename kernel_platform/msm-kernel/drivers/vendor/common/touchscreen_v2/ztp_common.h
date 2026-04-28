@@ -51,6 +51,7 @@
 #define PROC_TOUCH_ONEKEY			"one_key"
 #define PROC_TOUCH_PLAY_GAME		"play_game"
 #define PROC_TOUCH_SENSIBILITY		"sensibility"
+#define PROC_TOUCH_GAME_PARTITION		"game_partition"
 #define PROC_TOUCH_TP_REPORT_RATE		"tp_report_rate"
 #define PROC_TOUCH_FOLLOW_HAND_LEVEL    "follow_hand_level"
 #define PROC_TOUCH_PEN_ONLY		"pen_only"
@@ -59,6 +60,7 @@
 #define PROC_TOUCH_TP_PALM_MODE		"tp_palm_mode"
 #define PROC_TOUCH_TP_FOLD_STATE	"fold_state"
 #define PROC_TOUCH_FAKE_SLEEP			"fake_sleep"
+#define PROC_TOUCH_SCREEN_OFF_AWAKE		"screen_off_awake"
 #define PROC_TOUCH_STABILITY_LEVEL    "stability_level"
 #define PROC_BBAT_TEST	"BBAT_test"
 #define PROC_TP_TEST	"tp_test"
@@ -141,6 +143,7 @@ enum {
 	tp_freq_360Hz = 2,
 	tp_freq_480Hz = 3,
 	tp_freq_960Hz = 4,
+	tp_freq_180Hz = 5,
 };
 
 enum {
@@ -266,6 +269,8 @@ typedef enum zlog_error_no {
 #ifdef TOUCH_DOWN_UP_ZLOG
 	TP_GHOST_ERROR_NO,
 #endif
+	TP_SERVICE_ERROR_NO,
+	TP_OVERLOW_ERROR_NO,
 	TP_ZLOG_ERROR_MAX,
 } zlog_error_no;
 
@@ -313,6 +318,7 @@ struct ztp_device {
 	u16 edge_long_press_timer;
 	u16 tp_jitter_timer;
 	u8 sensibility_level;
+	char game_partition[1024];
 	u8 pen_only_mode;
 	u16 max_x;
 	u16 max_y;
@@ -331,6 +337,7 @@ struct ztp_device {
 	int palm_mode_en;
 	int fold_state;
 	int fake_sleep_enable;
+	int screen_off_awake_enable;
 #ifdef TOUCH_DOWN_UP_ZLOG
 	bool start_ghost_check_timer;
 	int point_down_num;
@@ -439,6 +446,8 @@ struct ztp_device {
 	int (*set_stability_level)(struct ztp_device *cdev, int enable);
 	int (*get_stability_level)(struct ztp_device *cdev);
 	int (*set_sensibility_leve)(struct ztp_device *cdev, u8 level);
+	int (*get_game_partition)(struct ztp_device *cdev);
+	int (*set_game_partition)(struct ztp_device *cdev, char *buf);
 	int (*set_gpio_mode)(struct ztp_device *cdev, u8 mode);
 	int (*get_sensibility)(struct ztp_device *cdev);
 	int (*set_sensibility)(struct ztp_device *cdev, u8 enable);
@@ -455,6 +464,8 @@ struct ztp_device {
 	int (*tp_fold_state_write)(struct ztp_device *cdev, int enable);
 	int (*get_fake_sleep)(struct ztp_device *cdev);
 	int (*set_fake_sleep)(struct ztp_device *cdev, int enable);
+	int (*get_screen_off_awake)(struct ztp_device *cdev);
+	int (*set_screen_off_awake)(struct ztp_device *cdev, int enable);
 	int (*tp_bbat_test)(struct ztp_device *cdev);
 	int (*ghost_check_reset)(struct ztp_device *cdev);
 };

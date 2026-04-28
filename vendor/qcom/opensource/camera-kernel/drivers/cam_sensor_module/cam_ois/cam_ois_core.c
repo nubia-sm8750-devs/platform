@@ -1757,6 +1757,27 @@ int cam_ois_driver_cmd(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 		}
 
 		if (o_ctrl->cam_ois_state == CAM_OIS_CONFIG) {
+            /* Started by AICoder, pid:h21ccz69c9bea5f147160b4190d53b1c48c8d79b */
+			if (!strncmp(o_ctrl->ois_name, "ois_dw9784_imx906_lotus", sizeof("ois_dw9784_imx906_lotus") - 1))
+			{
+				rc = zte_cam_cci_i2c_write(&(o_ctrl->io_master_info),
+					0x701B,
+					0x8000,
+					CAMERA_SENSOR_I2C_TYPE_WORD,
+					CAMERA_SENSOR_I2C_TYPE_WORD);
+				msleep(35);
+
+				if (rc < 0)
+				{
+					CAM_ERR(CAM_OIS, "dw9784 set slow power-off failed", rc);
+				}
+				else
+				{
+					CAM_DBG(CAM_OIS, "dw9784 set slow power-off success!");
+				}
+			}
+            /* Ended by AICoder, pid:h21ccz69c9bea5f147160b4190d53b1c48c8d79b */
+
 			rc = cam_ois_power_down(o_ctrl);
 			if (rc < 0) {
 				CAM_ERR(CAM_OIS, "OIS Power down failed");

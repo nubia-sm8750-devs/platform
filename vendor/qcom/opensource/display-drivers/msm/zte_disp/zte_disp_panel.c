@@ -11,6 +11,9 @@
 #include "zte_disp_panel_info.h"
 #include "zte_disp_work.h"
 #include "zte_lcd_reg_debug.h"
+#ifdef CONFIG_ZTE_LCD_ZLOG
+#include "zte_disp_zlog.h"
+#endif
 
 LCD_PROC_FILE_DEFINE(zte_lcd_hbm, ZTE_LCD_HBM_CTRL)
 LCD_PROC_FILE_DEFINE(zte_lcd_aod_bl, ZTE_LCD_AOD_BL)
@@ -19,6 +22,13 @@ LCD_PROC_FILE_DEFINE(zte_lcd_acl, ZTE_LCD_ACL_CTRL)
 LCD_PROC_FILE_DEFINE(zte_lcd_cur_fps, ZTE_LCD_FPS_CTRL)
 LCD_PROC_FILE_DEFINE(zte_panel_state, ZTE_LCD_STATE_CTRL)
 LCD_PROC_FILE_DEFINE(zte_lcd_bl_limit, ZTE_LCD_BL_LIMIT)
+LCD_PROC_FILE_DEFINE(zte_lcd_local_hbm, ZTE_LCD_LOCAL_HBM_CTRL)
+#ifdef CONFIG_DRM_ZTE_DISP_LTM
+LCD_PROC_FILE_DEFINE(zte_lcd_ltm_sensor_bl, ZTE_LCD_LTM_SENSOR_BL)
+#endif
+#ifdef CONFIG_DRM_ZTE_DISP_LTPO
+LCD_PROC_FILE_DEFINE(zte_lcd_min_fps, ZTE_LCD_MIN_FPS)
+#endif
 
 static void dsi_panel_parse_feature_config(struct dsi_panel *panel)
 {
@@ -42,6 +52,19 @@ static void dsi_panel_parse_feature_config(struct dsi_panel *panel)
 
     if (utils->read_bool(utils->data, "zte,bl_limit_enabled"))
         zte_lcd_bl_limit_init(panel);
+
+    if (utils->read_bool(utils->data, "zte,i2c_power_enabled"))
+        panel->i2c_power_enabled = true;
+
+    if (utils->read_bool(utils->data, "zte,local_hbm_enabled"))
+        zte_lcd_local_hbm_init(panel);
+
+#ifdef CONFIG_DRM_ZTE_DISP_LTM
+    zte_lcd_ltm_sensor_bl_init(panel);
+#endif
+#ifdef CONFIG_DRM_ZTE_DISP_LTPO
+    zte_lcd_min_fps_init(panel);
+#endif
 }
 
 static void dsi_panel_parse_vsync_config(struct dsi_panel *panel)
@@ -53,6 +76,23 @@ static void dsi_panel_parse_vsync_config(struct dsi_panel *panel)
     if (rc)
 		panel->vsync_width = 0;
 }
+
+#ifdef CONFIG_DRM_ZTE_DISP_LTPO
+static void dsi_panel_parse_ltpo_config(struct dsi_panel *panel)
+{
+    int rc = 0;
+    struct dsi_parser_utils *utils = &panel->utils;
+
+    rc = utils->read_u32(utils->data, "zte,min-fps-index1", &panel->minfps_index1);
+    if (rc)
+		panel->minfps_index1 = 0;
+
+    rc = utils->read_u32(utils->data, "zte,min-fps-index2", &panel->minfps_index2);
+    if (rc)
+		panel->minfps_index2 = 0;
+    pr_info("MSM_LCD min fps index[%d, %d]\n", panel->minfps_index1, panel->minfps_index2);
+}
+#endif
 
 void zte_disp_common_func(struct dsi_panel *panel)
 {
@@ -94,6 +134,11 @@ void zte_disp_common_func(struct dsi_panel *panel)
         } else if (id == ZTE_LCD_SET_SYNC_BL) {
             panel->disp_feature[id].logable = false;
         }
+    #ifdef CONFIG_DRM_ZTE_DISP_LTM
+        else if (id == ZTE_LCD_LTM_SENSOR_BL) {
+            panel->disp_feature[id].panel_must_init = false;
+        }
+    #endif
     }
 
     load_panel_info(panel);
@@ -101,6 +146,10 @@ void zte_disp_common_func(struct dsi_panel *panel)
     dsi_panel_parse_feature_config(panel);
 
     dsi_panel_parse_vsync_config(panel);
+
+    #ifdef CONFIG_DRM_ZTE_DISP_LTPO
+    dsi_panel_parse_ltpo_config(panel);
+    #endif
 
     INIT_WORK(&panel->dim_work, dimming_work_handler);
     panel->dim_workq = create_singlethread_workqueue("panel_dim_workq");
@@ -118,4 +167,8 @@ void zte_disp_common_func(struct dsi_panel *panel)
     panel->icon_workq = create_singlethread_workqueue("panel_icon_workq");
 
     zte_lcd_reg_debug_func(panel);
+
+#ifdef CONFIG_ZTE_LCD_ZLOG
+    zte_zlog_lcd_client_init(panel);
+#endif
 }

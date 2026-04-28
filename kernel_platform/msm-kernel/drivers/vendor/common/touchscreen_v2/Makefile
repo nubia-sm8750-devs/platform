@@ -103,4 +103,73 @@ zte_tpd-$(CONFIG_TOUCHSCREEN_GOODIX_BRL_THP) += \
 
 ######################################################
 
+zte_tpd-$(CONFIG_TOUCHSCREEN_GOODIX_BRL_FOLD_THP) += \
+	goodix_berlin_driver_FOLD_THP/goodix_thp.o \
+	goodix_berlin_driver_FOLD_THP/goodix_thp_spi.o \
+	goodix_berlin_driver_FOLD_THP/goodix_common_interface.o \
+
+######################################################
+
+zte_tpd-$(CONFIG_TOUCHSCREEN_FTS_3683G) += \
+	focaltech_touch_3683g/focaltech_core.o \
+	focaltech_touch_3683g/focaltech_ex_mode.o \
+	focaltech_touch_3683g/focaltech_gesture.o \
+	focaltech_touch_3683g/focaltech_esdcheck.o \
+	focaltech_touch_3683g/focaltech_point_report_check.o \
+	focaltech_touch_3683g/focaltech_flash.o \
+	focaltech_touch_3683g/focaltech_spi_v2.o \
+	focaltech_touch_3683g/focaltech_proximity.o \
+	focaltech_touch_3683g/focaltech_common_interface.o \
+	focaltech_touch_3683g/focaltech_test/focaltech_test.o \
+	focaltech_touch_3683g/focaltech_test/focaltech_test_ini.o \
+	focaltech_touch_3683g/focaltech_flash/focaltech_upgrade_ft3683g.o \
+	focaltech_touch_3683g/focaltech_test/supported_ic/focaltech_test_ft3683g.o \
+	focaltech_touch_3683g/focaltech_ex_fun.o \
+######################################################
+
+zte_tpd-$(CONFIG_TOUCHSCREEN_SYNA_TCM2_S3930T) += \
+	synaptics_touch_tcm2_THP/syna_tcm2.o \
+	synaptics_touch_tcm2_THP/syna_tcm2_cdev.o \
+	synaptics_touch_tcm2_THP/syna_tcm2_platform_spi.o \
+	synaptics_touch_tcm2_THP/syna_tcm2_sysfs.o \
+	synaptics_touch_tcm2_THP/syna_tcm2_common_interface.o \
+	synaptics_touch_tcm2_THP/tcm/synaptics_touchcom_func_reflash.o \
+	synaptics_touch_tcm2_THP/tcm/synaptics_touchcom_core_v2.o \
+	synaptics_touch_tcm2_THP/tcm/synaptics_touchcom_func_base.o \
+	synaptics_touch_tcm2_THP/tcm/synaptics_touchcom_func_touch.o \
+	synaptics_touch_tcm2_THP/tcm/synaptics_touchcom_image_parsing.o \
+	synaptics_touch_tcm2_THP/syna_tcm2_testing.o \
+	synaptics_touch_tcm2_THP/testing/synaptics_touchcom_testing_0A00_noise.o \
+	synaptics_touch_tcm2_THP/testing/synaptics_touchcom_testing_0001_build_id.o \
+	synaptics_touch_tcm2_THP/testing/synaptics_touchcom_testing_0002_config_id.o \
+	synaptics_touch_tcm2_THP/testing/synaptics_touchcom_testing_0100_trxtrx_short.o \
+	synaptics_touch_tcm2_THP/testing/synaptics_touchcom_testing_0500_full_raw.o
+#	synaptics_touch_tcm2_THP/tcm/synaptics_touchcom_core_v1.o \
+
+######################################################
+
+zte_tpd-$(CONFIG_TOUCHSCREEN_SYNA_TCM2_S3930T_LBP) += \
+	synaptics_tcm2/syna_tcm2.o \
+	synaptics_tcm2/syna_tcm2_cdev.o \
+	synaptics_tcm2/syna_tcm2_platform_spi.o \
+	synaptics_tcm2/syna_tcm2_sysfs.o \
+	synaptics_tcm2/tcm/synaptics_touchcom_func_reflash.o \
+	synaptics_tcm2/tcm/synaptics_touchcom_core_v2.o \
+	synaptics_tcm2/tcm/synaptics_touchcom_func_base.o \
+	synaptics_tcm2/tcm/synaptics_touchcom_func_touch.o \
+	synaptics_tcm2/tcm/synaptics_touchcom_image_parsing.o
+#	synaptics_tcm2/syna_tcm2_testing.o \
+
+######################################################
+
+zte_tpd-$(CONFIG_TOUCHSCREEN_HIMAX_HX83122A_LBP) += \
+	hxchipset/himax_ic_HX85200a.o \
+	hxchipset/himax_inspection.o \
+	hxchipset/himax_debug.o \
+	hxchipset/himax_ic_core.o \
+	hxchipset/himax_common.o \
+	hxchipset/himax_platform.o
+
+######################################################
+
 obj-m += zte_tpd.o

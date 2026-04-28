@@ -15,6 +15,7 @@ def define_sun():
             "audio_prm_dlkm",
             "q6_pdr_dlkm",
             "aw882xx_dlkm",
+            "tfa98xx_dlkm",
             "smartpa_stat_dlkm",
             "gpr_dlkm",
             "audio_pkt_dlkm",

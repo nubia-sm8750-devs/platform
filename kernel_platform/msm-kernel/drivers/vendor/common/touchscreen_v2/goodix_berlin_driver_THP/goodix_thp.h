@@ -220,6 +220,8 @@ struct zte_ctl {
 	int is_palm_mode;
 	int is_fake_sleep;
 	int is_fake_sleep_in_suspend;
+        int is_screen_off_awake;
+        int is_screen_off_awake_in_suspend;
 	int tp_report_rate;
 	int sensibility_level;
 	int follow_hand_level;
@@ -400,7 +402,7 @@ struct goodix_thp_hw_ops {
         int (*get_custom_info)(struct thp_ts_device *tdev, char *buf, unsigned int len);
         int (*get_frame)(struct thp_ts_device *dev, char *data);
         int (*get_version)(struct thp_ts_device *dev, u64 *version);
-        int (*set_fp_int_pin)(struct thp_ts_device *dev, u8 level);
+        //int (*set_fp_int_pin)(struct thp_ts_device *dev, u8 level);
 };
 
 struct goodix_thp_core {

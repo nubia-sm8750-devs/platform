@@ -673,6 +673,17 @@ static struct dload_struct __iomem *diag_dload;
 
 static void dwc3_pwr_event_handler(struct dwc3_msm *mdwc);
 
+/* Checks for if the SS PHY is dynamically powered downed in host mode */
+static inline bool is_ss_dynamic_powerdown(struct dwc3_msm *mdwc)
+{
+	if (mdwc->disable_host_ssphy_powerdown || mdwc->dp_state ||
+		(mdwc->in_host_mode && mdwc->max_rh_port_speed != USB_SPEED_HIGH))
+	{
+		return false;
+	}
+	return true;
+}
+
 static inline void dwc3_msm_ep_writel(void __iomem *base, u32 offset, u32 value)
 {
 	writel_relaxed(value, base + offset - DWC3_GLOBALS_REGS_START);
@@ -4325,8 +4336,7 @@ static int dwc3_msm_resume(struct dwc3_msm *mdwc)
 	if (dwc3_msm_get_max_speed(mdwc) >= USB_SPEED_SUPER &&
 			mdwc->lpm_flags & MDWC3_SS_PHY_SUSPEND) {
 		dwc3_set_ssphy_orientation_flag(mdwc);
-		if (!mdwc->in_host_mode || mdwc->disable_host_ssphy_powerdown ||
-			(mdwc->in_host_mode && mdwc->max_rh_port_speed != USB_SPEED_HIGH))
+		if (!mdwc->in_host_mode || !is_ss_dynamic_powerdown(mdwc))
 			usb_phy_set_suspend(mdwc->ss_phy, 0);
 
 		mdwc->ss_phy->flags &= ~DEVICE_IN_SS_MODE;
@@ -4646,7 +4656,7 @@ static void dwc3_pwr_event_handler(struct dwc3_msm *mdwc)
 
 	/* Unhandled events */
 	if (irq_stat)
-		dev_dbg(mdwc->dev, "%s: unexpected PWR_EVNT, irq_stat=%X\n",
+		dev_info(mdwc->dev, "%s: unexpected PWR_EVNT, irq_stat=%X\n",
 			__func__, irq_stat);
 
 	dwc3_msm_write_reg(mdwc->base, PWR_EVNT_IRQ_STAT_REG, irq_clear);
@@ -6599,6 +6609,15 @@ static int dwc3_msm_host_ss_powerdown(struct dwc3_msm *mdwc)
 {
 	u32 reg;
 
+	/*
+	* Conditions for allowing dynamic powerdown of the SS PHY:
+	*  1. The feature is not disabled by the DT property
+	*  2. Not currently in a DP active state
+	*  3. Connected device's speed is not super-speed
+	*
+	* Updates to this statement should be mirrored in the
+	* is_ss_dynamic_powerdown() checks API.
+	*/
 	if (mdwc->disable_host_ssphy_powerdown || mdwc->dp_state ||
 		dwc3_msm_get_max_speed(mdwc) < USB_SPEED_SUPER)
 		return 0;

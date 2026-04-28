@@ -22,7 +22,7 @@
 #define INIT_WRITE_SIZE 16
 #define RESET_WRITE_SIZE 3
 #define DW9784_INIT_WRITE_SIZE 15
-
+#define NAME_PROG_SIZE 64
 struct cam_sensor_i2c_reg_array g_ois_dw9784_init[DW9784_INIT_WRITE_SIZE] =
 {
 	/* step 1: MTP Erase and DSP Disable for firmware 0x8000 write */
@@ -334,7 +334,7 @@ int cam_ois_dw978x_fw_download(
 	const struct firmware             *fw = NULL;
 	const char                        *fw_name_prog = NULL;
 	//const char                        *fw_name_coeff = NULL;
-	char                               name_prog[32] = {0};
+	char                               name_prog[NAME_PROG_SIZE] = {0};
 	//char                               name_coeff[32] = {0};
 	struct device                     *dev = &(o_ctrl->pdev->dev);
 	struct cam_sensor_i2c_reg_setting  i2c_reg_setting;
@@ -358,7 +358,7 @@ int cam_ois_dw978x_fw_download(
 		return rc;
 	}
 
-	snprintf(name_prog, 32, "%s.prog", o_ctrl->ois_name);
+	snprintf(name_prog, NAME_PROG_SIZE, "%s.prog", o_ctrl->ois_name);
 
 	/* cast pointer as const pointer*/
 	fw_name_prog = name_prog;
@@ -559,7 +559,7 @@ uint32_t cam_ois_dw978x_FirmWare_Download(
 	const struct firmware             *fw = NULL;
 	const char                        *fw_name_prog = NULL;
 	//const char                        *fw_name_coeff = NULL;
-	char                               name_prog[32] = {0};
+	char                               name_prog[NAME_PROG_SIZE] = {0};
 	//char                               name_coeff[32] = {0};
 	struct device                     *dev = &(o_ctrl->pdev->dev);
 	struct cam_sensor_i2c_reg_setting  i2c_reg_setting;
@@ -582,7 +582,7 @@ uint32_t cam_ois_dw978x_FirmWare_Download(
 		return -EINVAL;
 	}
 
-	snprintf(name_prog, 32, "%s.prog", o_ctrl->ois_name);
+	snprintf(name_prog, NAME_PROG_SIZE, "%s.prog", o_ctrl->ois_name);
 
 	/* cast pointer as const pointer*/
 	fw_name_prog = name_prog;
